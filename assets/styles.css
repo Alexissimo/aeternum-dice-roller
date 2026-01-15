@@ -1,0 +1,299 @@
+:root{
+  --bg:#0b0f14;
+  --text:#e8eefc;
+  --muted:#9fb0d0;
+  --border:rgba(255,255,255,.10);
+  --shadow: 0 10px 30px rgba(0,0,0,.35);
+  --radius:14px;
+  
+}
+
+*{ box-sizing:border-box; }
+
+body{
+  margin:0;
+  padding:24px;
+
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(circle at 18% 18%, rgba(106,166,255,.22), transparent 60%),
+    radial-gradient(circle at 82% 22%, rgba(255,106,106,.18), transparent 62%);
+
+  background-repeat: no-repeat, no-repeat;
+  background-attachment: fixed, fixed;
+  background-size: cover, cover;              /* <-- qui: sempre “spalmato” sul viewport */
+  background-position: center, center;        /* <-- stabile su ogni risoluzione */
+
+  color:var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  line-height:1.35;
+}
+
+
+@media (max-width: 980px){
+  body{ padding:16px; }
+}
+
+.container{
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+h1{ margin:0 0 6px; font-size:20px; }
+h2{ margin:0 0 10px; font-size:15px; }
+
+.sub{ color:var(--muted); margin:0 0 18px; font-size:13px; }
+
+.topbar{
+  display:flex;
+  gap:16px;
+  justify-content:space-between;
+  align-items:flex-start;
+  flex-wrap:wrap;
+}
+
+.nav{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.grid{
+  display:grid;
+  gap:16px;
+  grid-template-columns: 1.1fr .9fr;
+  align-items:start;
+}
+
+@media (max-width: 980px){
+  .grid{ grid-template-columns:1fr; }
+}
+
+.card{
+  background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+  border:1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding:16px;
+}
+
+.row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+.row.space-between{ justify-content:space-between; }
+
+.split{
+  display:grid;
+  gap:12px;
+  grid-template-columns: 1fr 1fr;
+}
+
+@media (max-width: 640px){
+  .split{ grid-template-columns: 1fr; }
+}
+
+label{ font-size:12px; color:var(--muted); display:block; margin:0 0 6px; }
+
+input, select, textarea, button{ font: inherit; color: var(--text); }
+
+input, select{
+  background: rgba(0,0,0,.25);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:10px 10px;
+  outline:none;
+  width:100%;
+}
+
+input:focus, select:focus{
+  border-color: rgba(106,166,255,.6);
+  box-shadow: 0 0 0 3px rgba(106,166,255,.15);
+}
+
+.nav .btn{
+  color:#fff;
+  font-weight:700;
+  text-shadow: 0 0 6px rgba(255,255,255,.25);
+}
+
+.btn{
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:10px 12px;
+  background: rgba(255,255,255,.06);
+  cursor:pointer;
+  transition: transform .04s ease, background .15s ease, border-color .15s ease;
+  user-select:none;
+  text-decoration:none;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.btn:hover{ background: rgba(255,255,255,.09); border-color: rgba(255,255,255,.18); }
+.btn:active{ transform: translateY(1px); }
+
+.btn.primary{
+  background: rgba(106,166,255,.18);
+  border-color: rgba(106,166,255,.35);
+}
+
+.btn.danger{
+  background: rgba(255,106,106,.16);
+  border-color: rgba(255,106,106,.35);
+}
+
+.muted{ color:var(--muted); font-size:12px; }
+
+.bigResult{
+  background: rgba(0,0,0,.22);
+  border:1px solid var(--border);
+  border-radius: var(--radius);
+  padding:14px;
+}
+
+.bigResult .top{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  margin-bottom:10px;
+}
+
+.tag{
+  font-size:12px;
+  color:var(--muted);
+  background: rgba(255,255,255,.06);
+  border:1px solid var(--border);
+  padding:6px 10px;
+  border-radius:999px;
+  white-space:nowrap;
+}
+
+.out{
+  font-size:34px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.out small{ font-size:14px; color:var(--muted); }
+
+.history{
+  max-height: 520px;
+  overflow:auto;
+  border-radius: var(--radius);
+  border:1px solid var(--border);
+  background: rgba(0,0,0,.16);
+  margin-top:10px;
+}
+
+.hitem{
+  padding:10px 12px;
+  border-bottom:1px solid rgba(255,255,255,.07);
+}
+
+.hitem:last-child{ border-bottom:none; }
+
+.hline{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  align-items:flex-start;
+}
+
+.hleft{ display:flex; flex-direction:column; gap:2px; }
+.htitle{ font-size:13px; }
+.hmeta{ font-size:11px; color:var(--muted); }
+.hright{ font-size:14px; text-align:right; }
+
+code.kbd{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  padding:2px 6px;
+  border-radius:8px;
+  background: rgba(255,255,255,.06);
+  border:1px solid var(--border);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.list{
+  margin:0;
+  padding-left:18px;
+  color: var(--text);
+}
+
+.footer{
+  margin-top:16px;
+  padding-top:10px;
+  border-top:1px solid rgba(255,255,255,.08);
+}
+
+/* Contatore dadi + / - */
+.dice-counter{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.dice-counter input{
+  text-align:center;
+  font-weight:700;
+  font-size:16px;
+  width:64px;
+  padding:10px 0;
+}
+
+.counter-btn{
+  width:40px;
+  height:40px;
+  padding:0;
+  font-size:20px;
+  font-weight:700;
+  line-height:1;
+}
+
+/* Griglia pulsanti dadi */
+.dice-grid{
+  display:grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap:10px;
+  margin-top:10px;
+}
+@media (max-width: 980px){
+  .dice-grid{ grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 520px){
+  .dice-grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.dice-btn{
+  position:relative;
+  width:100%;
+  justify-content:center;
+  gap:8px;
+  font-weight:800;
+}
+
+.badge{
+  position:absolute;
+  top:-8px;
+  right:-8px;
+  min-width:22px;
+  height:22px;
+  padding:0 6px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:999px;
+  background: rgba(106,166,255,.25);
+  border: 1px solid rgba(106,166,255,.40);
+  color:#fff;
+  font-weight:800;
+  font-size:12px;
+}
+
+/* Quando selezionato */
+.dice-btn.selected{
+  background: rgba(106,166,255,.18);
+  border-color: rgba(106,166,255,.40);
+}
