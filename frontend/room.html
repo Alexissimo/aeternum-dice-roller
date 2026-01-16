@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Aeternum — Room</title>
+    <link rel="stylesheet" href="assets/styles.css" />
+  </head>
+  <body>
+    <header class="container">
+      <div class="topbar">
+        <div>
+          <h1>Room — Aeternum</h1>
+          <p class="sub">
+            Crea/entra in una room e condividi i tiri in realtime.
+          </p>
+        </div>
+        <nav class="nav">
+          <a class="btn" href="index.html">Home</a>
+          <a class="btn" href="roll.html">Solo locale</a>
+          <a class="btn" href="about.html">Guida</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container grid">
+      <section class="card" id="lobby">
+        <h2>Lobby</h2>
+
+        <div class="split">
+          <div>
+            <label>Nickname</label>
+            <input id="nick" placeholder="Es: Ale" />
+          </div>
+          <div>
+            <label>Backend URL</label>
+            <input id="backendUrl" placeholder="http://localhost:3000" />
+          </div>
+        </div>
+
+        <div class="row" style="margin-top: 12px">
+          <button class="btn primary" id="createRoomBtn">Crea room (GM)</button>
+        </div>
+
+        <hr
+          style="
+            border: none;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            margin: 16px 0;
+          "
+        />
+
+        <div class="split">
+          <div>
+            <label>Join code</label>
+            <input id="joinCode" placeholder="Es: AX7KQ2" />
+          </div>
+          <div>
+            <label>Master code (solo GM)</label>
+            <input id="masterCode" placeholder="Es: Z9K4P2QX" />
+          </div>
+        </div>
+
+        <div class="row" style="margin-top: 12px">
+          <button class="btn" id="joinRoomBtn">Entra (player)</button>
+          <button class="btn" id="rejoinMasterBtn">Rientra (GM)</button>
+        </div>
+
+        <p class="muted" style="margin-top: 10px">
+          Nickname duplicati non sono permessi. Max 15 dadi per tipo.
+        </p>
+      </section>
+
+      <section class="card" id="room" style="display: none">
+        <div class="row space-between">
+          <h2 style="margin: 0">Room</h2>
+          <span class="muted" id="roomMeta">—</span>
+        </div>
+
+        <!-- Box codici room (visibile soprattutto al GM) -->
+        <div class="card" id="codesBox" style="margin-top: 12px; display: none">
+          <div class="row space-between">
+            <div>
+              <div class="htitle">Codici room</div>
+              <div class="hmeta">
+                Condividi il Join code. Il Master code resta privato.
+              </div>
+            </div>
+            <button class="btn" id="copyInviteBtn" type="button">
+              Copia invito
+            </button>
+          </div>
+
+          <div class="split" style="margin-top: 10px">
+            <div>
+              <label>Join code</label>
+              <div class="row">
+                <input id="joinCodeOut" readonly />
+                <button class="btn" id="copyJoinBtn" type="button">
+                  Copia
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label>Master code (solo GM)</label>
+              <div class="row">
+                <input id="masterCodeOut" readonly type="password" />
+                <button class="btn" id="toggleMasterBtn" type="button">Mostra</button>
+                <button class="btn" id="copyMasterBtn" type="button">Copia</button>
+              </div>
+            </div>
+
+
+          <p class="muted" style="margin: 10px 0 0 0">
+            Link invito: <span id="inviteLinkOut">—</span>
+          </p>
+        </div>
+
+        <!-- Selezione dadi: riusa i pulsanti del tuo tool -->
+        <div class="dice-grid" id="diceGrid"></div>
+
+        <div class="row" style="margin-top:12px">
+          <button class="btn primary" id="rollPublicBtn">Lancia pubblico 🎲</button>
+          <button class="btn" id="resetSelectionBtn" type="button">Reset selezione</button>
+          <button class="btn" id="sendSecretBtn" style="display:none;">Invia tiro segreto 🔒</button>
+          <button class="btn" id="rollGmBtn" style="display:none;">Lancia GM-only</button>
+        </div>
+
+
+        <div class="warn" style="margin-top: 10px">
+          <div class="muted">Selezione: <span id="selectionTag">—</span></div>
+        </div>
+
+        <hr
+          style="
+            border: none;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            margin: 16px 0;
+          "
+        />
+
+        <h2>Players</h2>
+        <div class="muted" id="playersList">—</div>
+
+        <div id="gmTools" style="display: none; margin-top: 12px">
+          <h2>GM tools</h2>
+          <div class="split">
+            <div>
+              <label>Player target (tiro segreto)</label>
+              <select id="targetPlayer"></select>
+            </div>
+            <div>
+              <label>Nota (opzionale)</label>
+              <input
+                id="secretNote"
+                placeholder="Es: Percezione, tiro segreto..."
+              />
+            </div>
+          </div>
+          <div class="row" style="margin-top: 10px">
+            <button class="btn" id="requestSecretBtn">
+              Richiedi tiro segreto
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" id="feedCard" style="display: none">
+        <div class="row space-between">
+          <h2 style="margin: 0">Feed tiri</h2>
+          <span class="muted"
+            >pubblico + segreti (visibili solo se ti riguardano)</span
+          >
+        </div>
+        <div class="history" id="feed"></div>
+      </section>
+    </main>
+
+    <footer class="container footer">
+      <span class="muted"
+        >Room viva finché il GM è online (o rientra entro 5 minuti).</span
+      >
+    </footer>
+
+    <!-- Socket.IO client: servito dal backend -->
+    <script id="socketioScript"></script>
+    <script src="assets/presets.js"></script>
+    <script src="assets/room.js"></script>
+  </body>
+</html>

@@ -25,8 +25,11 @@
   function nowTime() {
     const d = new Date();
     return d.toLocaleString(undefined, {
-      day:"2-digit", month:"2-digit",
-      hour:"2-digit", minute:"2-digit", second:"2-digit"
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
     });
   }
 
@@ -118,13 +121,13 @@
     const s2 = "🗡️🗡️";
     const s1 = "🗡️";
     const df = "⚡⚡";
-    const f  = "⚡";
+    const f = "⚡";
 
     if (icon === s3) return { success: 3, failure: 0, doubleFailure: 0 };
     if (icon === s2) return { success: 2, failure: 0, doubleFailure: 0 };
     if (icon === s1) return { success: 1, failure: 0, doubleFailure: 0 };
     if (icon === df) return { success: 0, failure: 1, doubleFailure: 1 };
-    if (icon === f)  return { success: 0, failure: 1, doubleFailure: 0 };
+    if (icon === f) return { success: 0, failure: 1, doubleFailure: 0 };
 
     // fallback: unknown icon => 0/0
     return { success: 0, failure: 0, doubleFailure: 0 };
@@ -143,7 +146,7 @@
     }
     return {
       text: parts.length ? parts.join("  •  ") : "—",
-      totalDice
+      totalDice,
     };
   }
 
@@ -164,7 +167,8 @@
 
     const info = computeSelectionLabel();
     selectionTag.textContent = info.text;
-    selectedTag.textContent = info.totalDice > 0 ? `Selezione: ${info.text}` : "—";
+    selectedTag.textContent =
+      info.totalDice > 0 ? `Selezione: ${info.text}` : "—";
   }
 
   function renderResultBlock(perDieLines, summaryLine) {
@@ -209,7 +213,7 @@
 
     // Track results
     const perDieResults = {}; // sides -> array of icons
-    const successByDie = {};  // sides -> success sum
+    const successByDie = {}; // sides -> success sum
     let totalFailures = 0;
     let totalDoubleFailures = 0;
 
@@ -239,17 +243,18 @@
     // Build display lines (single results, grouped by die type)
     const perDieLines = Object.keys(perDieResults)
       .map(Number)
-      .sort((a,b) => a - b)
-      .map(sides => `d${sides}: ${perDieResults[sides].join(" ")}`);
+      .sort((a, b) => a - b)
+      .map((sides) => `d${sides}: ${perDieResults[sides].join(" ")}`);
 
     // Summary: successes per die type + failures
     const successParts = Object.keys(successByDie)
       .map(Number)
-      .sort((a,b) => a - b)
-      .map(sides => `d${sides} successi=${successByDie[sides]}`);
+      .sort((a, b) => a - b)
+      .map((sides) => `d${sides} successi=${successByDie[sides]}`);
 
-    const summaryLine =
-      `${successParts.join("  •  ")}  •  fallimenti=${totalFailures}  •  ⚡⚡=${totalDoubleFailures}`;
+    const summaryLine = `${successParts.join(
+      "  •  "
+    )}  •  fallimenti=${totalFailures}  •  ⚡⚡=${totalDoubleFailures}`;
 
     renderResultBlock(perDieLines, summaryLine);
 
@@ -269,7 +274,7 @@
       time: nowTime(),
       short,
       details,
-      summary: summaryLine
+      summary: summaryLine,
     });
   }
 
@@ -299,7 +304,7 @@
     diceGrid.innerHTML = "";
 
     // order by sides
-    const ordered = diceList.slice().sort((a,b) => a.sides - b.sides);
+    const ordered = diceList.slice().sort((a, b) => a.sides - b.sides);
 
     for (const d of ordered) {
       const btn = document.createElement("button");

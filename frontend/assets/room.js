@@ -1,0 +1,552 @@
+console.log("[room.js] loaded");
+(function () {
+  const $ = (id) => document.getElementById(id);
+
+  const nickEl = $("nick");
+  const backendUrlEl = $("backendUrl");
+  const joinCodeEl = $("joinCode");
+  const masterCodeEl = $("masterCode");
+
+  const createRoomBtn = $("createRoomBtn");
+  console.log("[room.js] createRoomBtn =", createRoomBtn);
+  const joinRoomBtn = $("joinRoomBtn");
+  const rejoinMasterBtn = $("rejoinMasterBtn");
+
+  const lobby = $("lobby");
+  const room = $("room");
+  const feedCard = $("feedCard");
+
+  const roomMeta = $("roomMeta");
+  const playersList = $("playersList");
+  const feed = $("feed");
+
+  const diceGrid = $("diceGrid");
+  const selectionTag = $("selectionTag");
+  const rollPublicBtn = $("rollPublicBtn");
+  const sendSecretBtn = $("sendSecretBtn");
+  const rollGmBtn = $("rollGmBtn");
+  const resetSelectionBtn = $("resetSelectionBtn");
+
+  const codesBox = $("codesBox");
+  const joinCodeOut = $("joinCodeOut");
+  const masterCodeOut = $("masterCodeOut");
+  const inviteLinkOut = $("inviteLinkOut");
+  const copyJoinBtn = $("copyJoinBtn");
+  const copyMasterBtn = $("copyMasterBtn");
+  const copyInviteBtn = $("copyInviteBtn");
+  const toggleMasterBtn = $("toggleMasterBtn");
+
+  const gmTools = $("gmTools");
+  const targetPlayer = $("targetPlayer");
+  const requestSecretBtn = $("requestSecretBtn");
+  const secretNote = $("secretNote");
+
+  const diceList = (window.AETERNUM_PRESET_DICE || []).slice();
+  const selectedCounts = {}; // { "4": n, "6": n, ... } max 15
+
+  let socket = null;
+
+  let session = {
+    roomCode: null,
+    masterCode: null,
+    me: null,
+    players: [],
+  };
+
+  let pendingSecret = null; // { requestId, roomCode, fromGM, note }
+
+  function clamp(n, min, max) {
+    return Math.max(min, Math.min(max, n));
+  }
+
+  function clearSelection() {
+    for (const k of Object.keys(selectedCounts)) delete selectedCounts[k];
+    refreshSelectionUI();
+  }
+
+  async function copyText(text) {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      alert("Copiato ✅");
+    } catch {
+      prompt("Copia manualmente:", text);
+    }
+  }
+
+  function buildInviteLink(roomCode) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("room", roomCode);
+    // manteniamo la pagina room.html
+    return url.toString();
+  }
+
+  function showCodesBox() {
+    if (!codesBox) return;
+
+    const roomCode = session.roomCode || "";
+    const isGM = !!session.me?.isGM;
+
+    codesBox.style.display = "";
+    joinCodeOut.value = roomCode;
+    inviteLinkOut.textContent = buildInviteLink(roomCode);
+
+    // master code: solo GM
+    masterCodeOut.value = isGM ? session.masterCode || "" : "—";
+    masterCodeOut.type = "password";
+    if (toggleMasterBtn) toggleMasterBtn.textContent = "Mostra";
+    copyMasterBtn.disabled = !isGM;
+
+    // se non GM, nascondiamo del tutto la colonna master (più pulito)
+    masterCodeOut.closest("div").style.display = isGM ? "" : "none";
+  }
+
+  function selectionToPayload() {
+    const out = {};
+    for (const [k, v] of Object.entries(selectedCounts)) {
+      if (v > 0) out[k] = v;
+    }
+    return out;
+  }
+
+  function selectionLabel() {
+    const keys = Object.keys(selectedCounts)
+      .map(Number)
+      .sort((a, b) => a - b);
+    const parts = [];
+    let tot = 0;
+    for (const s of keys) {
+      const n = selectedCounts[String(s)] || 0;
+      if (n > 0) {
+        parts.push(`d${s}×${n}`);
+        tot += n;
+      }
+    }
+    return { text: parts.length ? parts.join(" • ") : "—", tot };
+  }
+
+  function refreshSelectionUI() {
+    const info = selectionLabel();
+    selectionTag.textContent = info.text;
+
+    for (const btn of diceGrid.querySelectorAll("button[data-sides]")) {
+      const sides = btn.dataset.sides;
+      const n = selectedCounts[sides] || 0;
+      btn.classList.toggle("selected", n > 0);
+
+      const badge = btn.querySelector(".badge");
+      if (badge) {
+        badge.textContent = String(n);
+        badge.style.display = n > 0 ? "flex" : "none";
+      }
+    }
+  }
+
+  function buildDiceButtons() {
+    diceGrid.innerHTML = "";
+    const ordered = diceList.slice().sort((a, b) => a.sides - b.sides);
+
+    for (const d of ordered) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn dice-btn";
+      btn.dataset.sides = String(d.sides);
+      btn.textContent = `d${d.sides}`;
+
+      const badge = document.createElement("div");
+      badge.className = "badge";
+      badge.style.display = "none";
+      badge.textContent = "0";
+      btn.appendChild(badge);
+
+      btn.addEventListener("click", () => {
+        const s = String(d.sides);
+        const cur = selectedCounts[s] || 0;
+        selectedCounts[s] = clamp(cur + 1, 0, 15);
+        refreshSelectionUI();
+      });
+
+      // decrement
+      btn.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        const s = String(d.sides);
+        const cur = selectedCounts[s] || 0;
+        const next = clamp(cur - 1, 0, 15);
+        if (next === 0) delete selectedCounts[s];
+        else selectedCounts[s] = next;
+        refreshSelectionUI();
+      });
+
+      diceGrid.appendChild(btn);
+    }
+
+    refreshSelectionUI();
+  }
+
+  function setFeedEmpty() {
+    feed.innerHTML = `<div class="hitem"><div class="hmeta">Nessun evento ancora.</div></div>`;
+  }
+
+  function formatPerDieResults(perDie) {
+    // perDie: { "6": ["⚡","🗡️"], ... }
+    const sides = Object.keys(perDie)
+      .map(Number)
+      .sort((a, b) => a - b);
+    return sides
+      .map((s) => `d${s}: ${perDie[String(s)].join(" ")}`)
+      .join(" | ");
+  }
+
+  function formatSummary(summary) {
+    const successByDie = summary?.successByDie || {};
+    const sides = Object.keys(successByDie)
+      .map(Number)
+      .sort((a, b) => a - b);
+
+    const parts = sides.map((s) => `d${s} successi=${successByDie[String(s)]}`);
+    parts.push(`fallimenti=${summary?.failures ?? 0}`);
+    parts.push(`⚡⚡=${summary?.doubleFailures ?? 0}`);
+
+    return parts.join(" • ");
+  }
+
+  function addFeedEntry(entry, labelOverride = null) {
+    const item = document.createElement("div");
+    item.className = "hitem";
+
+    const time = new Date(entry.ts).toLocaleTimeString();
+    const titleLeft = labelOverride
+      ? labelOverride
+      : entry.type === "public"
+        ? `${entry.author} ha tirato`
+        : entry.type === "gm"
+          ? `GM-only: ${entry.author}`
+          : `SEGRETO: ${entry.author} ↔ GM ${entry.gm}`;
+
+    const shortRight = entry.selectionLabel || "";
+
+    const details = formatPerDieResults(entry.results?.perDie || {});
+    const summary = formatSummary(entry.summary || {});
+
+    item.innerHTML = `
+      <div class="hline">
+        <div class="hleft">
+          <div class="htitle">${titleLeft}</div>
+          <div class="hmeta">${time}</div>
+        </div>
+        <div class="hright">${shortRight}</div>
+      </div>
+      <div class="hmeta" style="margin-top:8px">${details}</div>
+      <div class="hmeta" style="margin-top:6px">${summary}</div>
+    `;
+
+    if (
+      feed.firstChild &&
+      feed.firstChild.querySelector &&
+      feed.firstChild.querySelector(".hmeta")?.textContent ===
+        "Nessun evento ancora."
+    ) {
+      feed.innerHTML = "";
+    }
+    feed.prepend(item);
+  }
+
+  function updatePlayersUI(players) {
+    session.players = players;
+    playersList.textContent = players
+      .map((p) => (p.isGM ? `${p.nickname} (GM)` : p.nickname))
+      .join(" • ");
+
+    if (session.me?.isGM) {
+      const targets = players.filter((p) => !p.isGM);
+      targetPlayer.innerHTML = "";
+      for (const t of targets) {
+        const opt = document.createElement("option");
+        opt.value = t.socketId;
+        opt.textContent = t.nickname;
+        targetPlayer.appendChild(opt);
+      }
+    }
+  }
+
+  function showRoomUI() {
+    lobby.style.display = "none";
+    room.style.display = "";
+    feedCard.style.display = "";
+    setFeedEmpty();
+
+    const base = `Room ${session.roomCode}`;
+    roomMeta.textContent = session.me?.isGM
+      ? `${base} • Sei GM`
+      : `${base} • Sei player`;
+
+    rollGmBtn.style.display = session.me?.isGM ? "" : "none";
+    gmTools.style.display = session.me?.isGM ? "" : "none";
+  }
+
+function loadSocketIoScript(backendUrl) {
+  return new Promise((resolve, reject) => {
+    // se già presente, ok
+    if (window.io) return resolve();
+
+    const script = document.getElementById("socketioScript");
+    if (!script) return reject(new Error("Tag <script id='socketioScript'> mancante in room.html"));
+
+    script.src = `${backendUrl.replace(/\/$/, "")}/socket.io/socket.io.js`;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Impossibile caricare socket.io.js dal backend"));
+  });
+}
+
+  async function connect(backendUrl) {
+    await loadSocketIoScript(backendUrl);
+    socket = io(backendUrl, { transports: ["websocket"] });
+
+    socket.on("connect", () => {
+      console.log("[socket] connected:", socket.id);
+    });
+
+    socket.on("connect_error", (err) => {
+      console.error("[socket] connect_error:", err);
+      alert("Connessione al backend fallita:\n" + (err?.message || err));
+    });
+
+    socket.on("disconnect", (reason) => {
+      console.warn("[socket] disconnected:", reason);
+    });
+
+    socket.on("error_message", ({ message }) => alert(message || "Errore"));
+
+    socket.on("room_created", (data) => {
+      session.roomCode = data.roomCode;
+      session.masterCode = data.masterCode;
+      session.me = data.me;
+      updatePlayersUI(data.players || []);
+      showRoomUI();
+
+      showCodesBox();
+
+      addFeedEntry(
+        {
+          type: "public",
+          author: "Sistema",
+          selectionLabel: "",
+          results: { perDie: {} },
+          summary: { successByDie: {}, failures: 0, doubleFailures: 0 },
+          ts: Date.now(),
+        },
+        `Room creata • Join: ${data.roomCode} • Master: ${data.masterCode}`
+      );
+    });
+
+    socket.on("room_joined", (data) => {
+      session.roomCode = data.roomCode;
+      session.masterCode = data.masterCode || null;
+      session.me = data.me;
+      updatePlayersUI(data.players || []);
+      showRoomUI();
+
+      showCodesBox();
+
+      // carica history della room
+      const history = (data.history || []).slice().reverse(); // dal più vecchio al più nuovo
+      for (const e of history) addFeedEntry(e);
+
+      addFeedEntry(
+        {
+          type: "public",
+          author: "Sistema",
+          selectionLabel: "",
+          results: { perDie: {} },
+          summary: { successByDie: {}, failures: 0, doubleFailures: 0 },
+          ts: Date.now(),
+        },
+        `Entrato in room come ${session.me.nickname}`
+      );
+    });
+
+    socket.on("join_denied", ({ message }) =>
+      alert(message || "Join rifiutato")
+    );
+
+    socket.on("players_update", ({ players }) =>
+      updatePlayersUI(players || [])
+    );
+
+    socket.on("gm_status", ({ status, graceSeconds }) => {
+      const msg =
+        status === "disconnected"
+          ? `GM disconnesso • grace ${graceSeconds}s`
+          : `GM online`;
+      addFeedEntry(
+        {
+          type: "public",
+          author: "Sistema",
+          selectionLabel: "",
+          results: { perDie: {} },
+          summary: { successByDie: {}, failures: 0, doubleFailures: 0 },
+          ts: Date.now(),
+        },
+        msg
+      );
+    });
+
+    socket.on("room_closed", ({ reason }) => {
+      alert(`Room chiusa: ${reason || "—"}`);
+      location.reload();
+    });
+
+    // PUBLIC FEED
+    socket.on("roll_feed", (entry) => addFeedEntry(entry));
+
+    // GM-only FEED
+    socket.on("gm_roll_feed", (entry) => addFeedEntry(entry));
+
+    // SECRET REQUEST → abilita bottone invio segreto
+    socket.on(
+      "secret_roll_request",
+      ({ requestId, roomCode, fromGM, note }) => {
+        pendingSecret = { requestId, roomCode, fromGM, note: note || "" };
+        sendSecretBtn.style.display = "";
+        rollPublicBtn.disabled = true;
+
+        alert(
+          `Tiro segreto richiesto da ${fromGM}${
+            note ? `\nNota: ${note}` : ""
+          }\nSeleziona i dadi e premi "Invia tiro segreto 🔒".`
+        );
+      }
+    );
+
+    // SECRET FEED (solo GM + player)
+    socket.on("secret_roll_feed", (entry) => addFeedEntry(entry));
+  }
+
+  // ---------------- UI actions ----------------
+  createRoomBtn.addEventListener("click", async () => {
+    const nickname = nickEl.value.trim();
+    const backendUrl = backendUrlEl.value.trim() || "http://127.0.0.1:3000";
+    if (!nickname) return alert("Inserisci un nickname.");
+
+    try {
+      if (!socket) await connect(backendUrl);
+      socket.emit("room_create", { nickname });
+      console.log("room_create emitted");
+    } catch (e) {
+      console.error(e);
+      alert("Errore durante la creazione room: " + (e?.message || e));
+    }
+  });
+
+  resetSelectionBtn?.addEventListener("click", clearSelection);
+
+  copyJoinBtn?.addEventListener("click", () => copyText(joinCodeOut.value));
+  copyMasterBtn?.addEventListener("click", () => copyText(masterCodeOut.value));
+  copyInviteBtn?.addEventListener("click", () =>
+    copyText(buildInviteLink(session.roomCode || ""))
+  );
+
+  toggleMasterBtn?.addEventListener("click", () => {
+    const isHidden = masterCodeOut.type === "password";
+    masterCodeOut.type = isHidden ? "text" : "password";
+    toggleMasterBtn.textContent = isHidden ? "Nascondi" : "Mostra";
+  });
+
+  joinRoomBtn.addEventListener("click", async () => {
+    const nickname = nickEl.value.trim();
+    const roomCode = joinCodeEl.value.trim().toUpperCase();
+    const backendUrl = backendUrlEl.value.trim() || "http://localhost:3000";
+    if (!nickname) return alert("Inserisci un nickname.");
+    if (!roomCode) return alert("Inserisci il join code.");
+
+    if (!socket) await connect(backendUrl);
+    socket.emit("room_join", { roomCode, nickname });
+  });
+
+  rejoinMasterBtn.addEventListener("click", async () => {
+    const nickname = nickEl.value.trim();
+    const roomCode = joinCodeEl.value.trim().toUpperCase();
+    const masterCode = masterCodeEl.value.trim().toUpperCase();
+    const backendUrl = backendUrlEl.value.trim() || "http://localhost:3000";
+
+    if (!nickname) return alert("Inserisci un nickname.");
+    if (!roomCode) return alert("Inserisci il join code.");
+    if (!masterCode) return alert("Inserisci il master code.");
+
+    if (!socket) await connect(backendUrl);
+    socket.emit("room_rejoin_master", { roomCode, masterCode, nickname });
+  });
+
+  rollPublicBtn.addEventListener("click", () => {
+    if (!socket || !session.roomCode) return alert("Non sei in una room.");
+    const selection = selectionToPayload();
+    if (!Object.keys(selection).length)
+      return alert("Seleziona almeno un dado (max 15 per tipo).");
+
+    socket.emit("roll_public", { roomCode: session.roomCode, selection });
+  });
+
+  rollGmBtn.addEventListener("click", () => {
+    if (!socket || !session.roomCode) return alert("Non sei in una room.");
+    if (!session.me?.isGM) return;
+
+    const selection = selectionToPayload();
+    if (!Object.keys(selection).length)
+      return alert("Seleziona almeno un dado (max 15 per tipo).");
+
+    socket.emit("roll_gm", {
+      roomCode: session.roomCode,
+      masterCode: session.masterCode,
+      selection,
+    });
+  });
+
+  requestSecretBtn.addEventListener("click", () => {
+    if (!socket || !session.roomCode) return;
+    if (!session.me?.isGM) return;
+
+    const targetSocketId = targetPlayer.value;
+    if (!targetSocketId) return alert("Nessun player target disponibile.");
+
+    socket.emit("secret_roll_request", {
+      roomCode: session.roomCode,
+      masterCode: session.masterCode,
+      targetSocketId,
+      note: secretNote.value || "",
+    });
+  });
+
+  sendSecretBtn.addEventListener("click", () => {
+    if (!socket || !session.roomCode) return;
+    if (!pendingSecret) return;
+
+    const selection = selectionToPayload();
+    if (!Object.keys(selection).length)
+      return alert("Seleziona almeno un dado (max 15 per tipo).");
+
+    socket.emit("secret_roll_result", {
+      roomCode: pendingSecret.roomCode,
+      requestId: pendingSecret.requestId,
+      selection,
+    });
+
+    // reset UI
+    pendingSecret = null;
+    sendSecretBtn.style.display = "none";
+    rollPublicBtn.disabled = false;
+  });
+
+  (function autofillRoomFromQuery() {
+    const url = new URL(window.location.href);
+    const roomParam = (url.searchParams.get("room") || "").trim().toUpperCase();
+    if (roomParam) {
+      joinCodeEl.value = roomParam;
+      nickEl.focus();
+    }
+  })();
+
+  // init
+  backendUrlEl.value = backendUrlEl.value || "http://localhost:3000";
+  buildDiceButtons();
+  setFeedEmpty();
+})();
