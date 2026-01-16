@@ -546,7 +546,7 @@ function loadSocketIoScript(backendUrl) {
   })();
 
   // init
-  backendUrlEl.value = backendUrlEl.value || "https://aeternum-backend.onrender.com";
+  backendUrlEl.value = backendUrlEl.value || "https://aeternum-dice-roller.onrender.com";
   buildDiceButtons();
   setFeedEmpty();
 })();
