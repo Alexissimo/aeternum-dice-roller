@@ -1,16 +1,23 @@
 console.log("[room.js] loaded");
+
 (function () {
   const $ = (id) => document.getElementById(id);
 
+  // Backend ufficiale (non modificabile dall'utente)
+  const BACKEND_URL = "https://aeternum-dice-roller.onrender.com";
+
   const nickEl = $("nick");
-  const backendUrlEl = $("backendUrl");
   const joinCodeEl = $("joinCode");
   const masterCodeEl = $("masterCode");
 
   const createRoomBtn = $("createRoomBtn");
-  console.log("[room.js] createRoomBtn =", createRoomBtn);
   const joinRoomBtn = $("joinRoomBtn");
   const rejoinMasterBtn = $("rejoinMasterBtn");
+
+  const connCard = $("connCard");
+  const connTitle = $("connTitle");
+  const connMsg = $("connMsg");
+  const connRetryBtn = $("connRetryBtn");
 
   const lobby = $("lobby");
   const room = $("room");
@@ -55,8 +62,41 @@ console.log("[room.js] loaded");
 
   let pendingSecret = null; // { requestId, roomCode, fromGM, note }
 
+  // ---------------- utils ----------------
   function clamp(n, min, max) {
     return Math.max(min, Math.min(max, n));
+  }
+
+  function setConnUI(state, msg = "") {
+    // state: "hidden" | "connecting" | "online" | "offline"
+    if (!connCard) return;
+
+    if (state === "hidden") {
+      connCard.style.display = "none";
+      return;
+    }
+
+    connCard.style.display = "";
+
+    if (state === "connecting") {
+      connTitle.textContent = "🟡 Connessione…";
+      connMsg.textContent =
+        msg || "Sto contattando il server (può richiedere qualche secondo).";
+      connRetryBtn.style.display = "none";
+    }
+
+    if (state === "online") {
+      connTitle.textContent = "🟢 Online";
+      connMsg.textContent = msg || "Connesso al server.";
+      connRetryBtn.style.display = "none";
+    }
+
+    if (state === "offline") {
+      connTitle.textContent = "🔴 Offline";
+      connMsg.textContent =
+        msg || "Server non raggiungibile. Riprova tra poco.";
+      connRetryBtn.style.display = "";
+    }
   }
 
   function clearSelection() {
@@ -77,7 +117,6 @@ console.log("[room.js] loaded");
   function buildInviteLink(roomCode) {
     const url = new URL(window.location.href);
     url.searchParams.set("room", roomCode);
-    // manteniamo la pagina room.html
     return url.toString();
   }
 
@@ -98,7 +137,8 @@ console.log("[room.js] loaded");
     copyMasterBtn.disabled = !isGM;
 
     // se non GM, nascondiamo del tutto la colonna master (più pulito)
-    masterCodeOut.closest("div").style.display = isGM ? "" : "none";
+    const masterCol = masterCodeOut.closest("div");
+    if (masterCol) masterCol.style.display = isGM ? "" : "none";
   }
 
   function selectionToPayload() {
@@ -113,8 +153,10 @@ console.log("[room.js] loaded");
     const keys = Object.keys(selectedCounts)
       .map(Number)
       .sort((a, b) => a - b);
+
     const parts = [];
     let tot = 0;
+
     for (const s of keys) {
       const n = selectedCounts[String(s)] || 0;
       if (n > 0) {
@@ -122,6 +164,7 @@ console.log("[room.js] loaded");
         tot += n;
       }
     }
+
     return { text: parts.length ? parts.join(" • ") : "—", tot };
   }
 
@@ -166,7 +209,7 @@ console.log("[room.js] loaded");
         refreshSelectionUI();
       });
 
-      // decrement
+      // decrement (tasto destro)
       btn.addEventListener("contextmenu", (e) => {
         e.preventDefault();
         const s = String(d.sides);
@@ -188,10 +231,10 @@ console.log("[room.js] loaded");
   }
 
   function formatPerDieResults(perDie) {
-    // perDie: { "6": ["⚡","🗡️"], ... }
     const sides = Object.keys(perDie)
       .map(Number)
       .sort((a, b) => a - b);
+
     return sides
       .map((s) => `d${s}: ${perDie[String(s)].join(" ")}`)
       .join(" | ");
@@ -224,7 +267,6 @@ console.log("[room.js] loaded");
           : `SEGRETO: ${entry.author} ↔ GM ${entry.gm}`;
 
     const shortRight = entry.selectionLabel || "";
-
     const details = formatPerDieResults(entry.results?.perDie || {});
     const summary = formatSummary(entry.summary || {});
 
@@ -240,14 +282,11 @@ console.log("[room.js] loaded");
       <div class="hmeta" style="margin-top:6px">${summary}</div>
     `;
 
-    if (
-      feed.firstChild &&
-      feed.firstChild.querySelector &&
-      feed.firstChild.querySelector(".hmeta")?.textContent ===
-        "Nessun evento ancora."
-    ) {
-      feed.innerHTML = "";
-    }
+    const empty =
+      feed.firstChild?.querySelector?.(".hmeta")?.textContent ===
+      "Nessun evento ancora.";
+    if (empty) feed.innerHTML = "";
+
     feed.prepend(item);
   }
 
@@ -284,35 +323,56 @@ console.log("[room.js] loaded");
     gmTools.style.display = session.me?.isGM ? "" : "none";
   }
 
-function loadSocketIoScript(backendUrl) {
-  return new Promise((resolve, reject) => {
-    // se già presente, ok
-    if (window.io) return resolve();
+  // ---------------- socket loader + connect ----------------
+  function loadSocketIoScript(backendUrl) {
+    return new Promise((resolve, reject) => {
+      if (window.io) return resolve();
 
-    const script = document.getElementById("socketioScript");
-    if (!script) return reject(new Error("Tag <script id='socketioScript'> mancante in room.html"));
+      const script = document.getElementById("socketioScript");
+      if (!script)
+        return reject(
+          new Error("Tag <script id='socketioScript'> mancante in room.html")
+        );
 
-    script.src = `${backendUrl.replace(/\/$/, "")}/socket.io/socket.io.js`;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Impossibile caricare socket.io.js dal backend"));
-  });
-}
+      script.src = `${backendUrl.replace(/\/$/, "")}/socket.io/socket.io.js`;
+      script.onload = () => resolve();
+      script.onerror = () =>
+        reject(new Error("Impossibile caricare socket.io.js dal backend"));
+    });
+  }
 
-  async function connect(backendUrl) {
-    await loadSocketIoScript(backendUrl);
-    socket = io(backendUrl, { transports: ["websocket"] });
+  async function connect() {
+    setConnUI("connecting");
+    await loadSocketIoScript(BACKEND_URL);
+    socket = io(BACKEND_URL, { transports: ["websocket"] });
+
+    // Se Render è in sleep, la prima connessione può metterci un po'
+    let connectSoftTimer = setTimeout(() => {
+      setConnUI(
+        "connecting",
+        "Sto ancora tentando… (il server potrebbe stare “svegliandosi”)."
+      );
+    }, 2500);
 
     socket.on("connect", () => {
+      clearTimeout(connectSoftTimer);
+      setConnUI("online");
       console.log("[socket] connected:", socket.id);
     });
 
-    socket.on("connect_error", (err) => {
-      console.error("[socket] connect_error:", err);
-      alert("Connessione al backend fallita:\n" + (err?.message || err));
+    socket.on("disconnect", (reason) => {
+      setConnUI("offline", `Connessione persa (${reason}).`);
+      console.warn("[socket] disconnected:", reason);
     });
 
-    socket.on("disconnect", (reason) => {
-      console.warn("[socket] disconnected:", reason);
+    socket.on("connect_error", (err) => {
+      // Non spammare alert: mostriamo UI e basta
+      clearTimeout(connectSoftTimer);
+      setConnUI(
+        "offline",
+        err?.message ? `Errore: ${err.message}` : "Errore di connessione."
+      );
+      console.error("[socket] connect_error:", err);
     });
 
     socket.on("error_message", ({ message }) => alert(message || "Errore"));
@@ -321,9 +381,9 @@ function loadSocketIoScript(backendUrl) {
       session.roomCode = data.roomCode;
       session.masterCode = data.masterCode;
       session.me = data.me;
+
       updatePlayersUI(data.players || []);
       showRoomUI();
-
       showCodesBox();
 
       addFeedEntry(
@@ -343,13 +403,13 @@ function loadSocketIoScript(backendUrl) {
       session.roomCode = data.roomCode;
       session.masterCode = data.masterCode || null;
       session.me = data.me;
+
       updatePlayersUI(data.players || []);
       showRoomUI();
-
       showCodesBox();
 
-      // carica history della room
-      const history = (data.history || []).slice().reverse(); // dal più vecchio al più nuovo
+      // history (già filtrata dal server)
+      const history = (data.history || []).slice().reverse();
       for (const e of history) addFeedEntry(e);
 
       addFeedEntry(
@@ -378,6 +438,7 @@ function loadSocketIoScript(backendUrl) {
         status === "disconnected"
           ? `GM disconnesso • grace ${graceSeconds}s`
           : `GM online`;
+
       addFeedEntry(
         {
           type: "public",
@@ -396,13 +457,9 @@ function loadSocketIoScript(backendUrl) {
       location.reload();
     });
 
-    // PUBLIC FEED
     socket.on("roll_feed", (entry) => addFeedEntry(entry));
-
-    // GM-only FEED
     socket.on("gm_roll_feed", (entry) => addFeedEntry(entry));
 
-    // SECRET REQUEST → abilita bottone invio segreto
     socket.on(
       "secret_roll_request",
       ({ requestId, roomCode, fromGM, note }) => {
@@ -411,31 +468,113 @@ function loadSocketIoScript(backendUrl) {
         rollPublicBtn.disabled = true;
 
         alert(
-          `Tiro segreto richiesto da ${fromGM}${
-            note ? `\nNota: ${note}` : ""
-          }\nSeleziona i dadi e premi "Invia tiro segreto 🔒".`
+          `Tiro segreto richiesto da ${fromGM}${note ? `\nNota: ${note}` : ""}\n` +
+            `Seleziona i dadi e premi "Invia tiro segreto 🔒".`
         );
       }
     );
 
-    // SECRET FEED (solo GM + player)
     socket.on("secret_roll_feed", (entry) => addFeedEntry(entry));
   }
 
   // ---------------- UI actions ----------------
-  createRoomBtn.addEventListener("click", async () => {
+  createRoomBtn?.addEventListener("click", async () => {
     const nickname = nickEl.value.trim();
-    const backendUrl = backendUrlEl.value.trim() || "http://127.0.0.1:3000";
     if (!nickname) return alert("Inserisci un nickname.");
 
     try {
-      if (!socket) await connect(backendUrl);
+      if (!socket) await connect();
       socket.emit("room_create", { nickname });
-      console.log("room_create emitted");
     } catch (e) {
       console.error(e);
       alert("Errore durante la creazione room: " + (e?.message || e));
     }
+  });
+
+  joinRoomBtn?.addEventListener("click", async () => {
+    const nickname = nickEl.value.trim();
+    const roomCode = joinCodeEl.value.trim().toUpperCase();
+
+    if (!nickname) return alert("Inserisci un nickname.");
+    if (!roomCode) return alert("Inserisci il join code.");
+
+    if (!socket) await connect();
+    socket.emit("room_join", { roomCode, nickname });
+  });
+
+  rejoinMasterBtn?.addEventListener("click", async () => {
+    const nickname = nickEl.value.trim();
+    const roomCode = joinCodeEl.value.trim().toUpperCase();
+    const masterCode = masterCodeEl.value.trim().toUpperCase();
+
+    if (!nickname) return alert("Inserisci un nickname.");
+    if (!roomCode) return alert("Inserisci il join code.");
+    if (!masterCode) return alert("Inserisci il master code.");
+
+    if (!socket) await connect();
+    socket.emit("room_rejoin_master", { roomCode, masterCode, nickname });
+  });
+
+  rollPublicBtn?.addEventListener("click", () => {
+    if (!socket || !session.roomCode) return alert("Non sei in una room.");
+
+    const selection = selectionToPayload();
+    if (!Object.keys(selection).length) {
+      return alert("Seleziona almeno un dado (max 15 per tipo).");
+    }
+
+    socket.emit("roll_public", { roomCode: session.roomCode, selection });
+  });
+
+  rollGmBtn?.addEventListener("click", () => {
+    if (!socket || !session.roomCode) return alert("Non sei in una room.");
+    if (!session.me?.isGM) return;
+
+    const selection = selectionToPayload();
+    if (!Object.keys(selection).length) {
+      return alert("Seleziona almeno un dado (max 15 per tipo).");
+    }
+
+    socket.emit("roll_gm", {
+      roomCode: session.roomCode,
+      masterCode: session.masterCode,
+      selection,
+    });
+  });
+
+  requestSecretBtn?.addEventListener("click", () => {
+    if (!socket || !session.roomCode) return;
+    if (!session.me?.isGM) return;
+
+    const targetSocketId = targetPlayer.value;
+    if (!targetSocketId) return alert("Nessun player target disponibile.");
+
+    socket.emit("secret_roll_request", {
+      roomCode: session.roomCode,
+      masterCode: session.masterCode,
+      targetSocketId,
+      note: secretNote.value || "",
+    });
+  });
+
+  sendSecretBtn?.addEventListener("click", () => {
+    if (!socket || !session.roomCode) return;
+    if (!pendingSecret) return;
+
+    const selection = selectionToPayload();
+    if (!Object.keys(selection).length) {
+      return alert("Seleziona almeno un dado (max 15 per tipo).");
+    }
+
+    socket.emit("secret_roll_result", {
+      roomCode: pendingSecret.roomCode,
+      requestId: pendingSecret.requestId,
+      selection,
+    });
+
+    pendingSecret = null;
+    sendSecretBtn.style.display = "none";
+    rollPublicBtn.disabled = false;
   });
 
   resetSelectionBtn?.addEventListener("click", clearSelection);
@@ -452,90 +591,21 @@ function loadSocketIoScript(backendUrl) {
     toggleMasterBtn.textContent = isHidden ? "Nascondi" : "Mostra";
   });
 
-  joinRoomBtn.addEventListener("click", async () => {
-    const nickname = nickEl.value.trim();
-    const roomCode = joinCodeEl.value.trim().toUpperCase();
-    const backendUrl = backendUrlEl.value.trim() || "http://localhost:3000";
-    if (!nickname) return alert("Inserisci un nickname.");
-    if (!roomCode) return alert("Inserisci il join code.");
-
-    if (!socket) await connect(backendUrl);
-    socket.emit("room_join", { roomCode, nickname });
+  connRetryBtn?.addEventListener("click", async () => {
+    try {
+      // se esiste un socket vecchio, chiudiamolo
+      if (socket) {
+        socket.disconnect();
+        socket = null;
+      }
+      await connect();
+    } catch (e) {
+      console.error(e);
+      setConnUI("offline", e?.message || "Errore durante il retry.");
+    }
   });
 
-  rejoinMasterBtn.addEventListener("click", async () => {
-    const nickname = nickEl.value.trim();
-    const roomCode = joinCodeEl.value.trim().toUpperCase();
-    const masterCode = masterCodeEl.value.trim().toUpperCase();
-    const backendUrl = backendUrlEl.value.trim() || "http://localhost:3000";
-
-    if (!nickname) return alert("Inserisci un nickname.");
-    if (!roomCode) return alert("Inserisci il join code.");
-    if (!masterCode) return alert("Inserisci il master code.");
-
-    if (!socket) await connect(backendUrl);
-    socket.emit("room_rejoin_master", { roomCode, masterCode, nickname });
-  });
-
-  rollPublicBtn.addEventListener("click", () => {
-    if (!socket || !session.roomCode) return alert("Non sei in una room.");
-    const selection = selectionToPayload();
-    if (!Object.keys(selection).length)
-      return alert("Seleziona almeno un dado (max 15 per tipo).");
-
-    socket.emit("roll_public", { roomCode: session.roomCode, selection });
-  });
-
-  rollGmBtn.addEventListener("click", () => {
-    if (!socket || !session.roomCode) return alert("Non sei in una room.");
-    if (!session.me?.isGM) return;
-
-    const selection = selectionToPayload();
-    if (!Object.keys(selection).length)
-      return alert("Seleziona almeno un dado (max 15 per tipo).");
-
-    socket.emit("roll_gm", {
-      roomCode: session.roomCode,
-      masterCode: session.masterCode,
-      selection,
-    });
-  });
-
-  requestSecretBtn.addEventListener("click", () => {
-    if (!socket || !session.roomCode) return;
-    if (!session.me?.isGM) return;
-
-    const targetSocketId = targetPlayer.value;
-    if (!targetSocketId) return alert("Nessun player target disponibile.");
-
-    socket.emit("secret_roll_request", {
-      roomCode: session.roomCode,
-      masterCode: session.masterCode,
-      targetSocketId,
-      note: secretNote.value || "",
-    });
-  });
-
-  sendSecretBtn.addEventListener("click", () => {
-    if (!socket || !session.roomCode) return;
-    if (!pendingSecret) return;
-
-    const selection = selectionToPayload();
-    if (!Object.keys(selection).length)
-      return alert("Seleziona almeno un dado (max 15 per tipo).");
-
-    socket.emit("secret_roll_result", {
-      roomCode: pendingSecret.roomCode,
-      requestId: pendingSecret.requestId,
-      selection,
-    });
-
-    // reset UI
-    pendingSecret = null;
-    sendSecretBtn.style.display = "none";
-    rollPublicBtn.disabled = false;
-  });
-
+  // Autofill join code da ?room=XXXX
   (function autofillRoomFromQuery() {
     const url = new URL(window.location.href);
     const roomParam = (url.searchParams.get("room") || "").trim().toUpperCase();
@@ -546,7 +616,7 @@ function loadSocketIoScript(backendUrl) {
   })();
 
   // init
-  backendUrlEl.value = backendUrlEl.value || "https://aeternum-dice-roller.onrender.com";
   buildDiceButtons();
   setFeedEmpty();
+  setConnUI("hidden"); // o "connecting" se vuoi connetterti subito
 })();
