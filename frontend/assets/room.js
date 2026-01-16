@@ -546,7 +546,7 @@ function loadSocketIoScript(backendUrl) {
   })();
 
   // init
-  backendUrlEl.value = backendUrlEl.value || "http://localhost:3000";
+  backendUrlEl.value = backendUrlEl.value || "https://aeternum-backend.onrender.com";
   buildDiceButtons();
   setFeedEmpty();
 })();
