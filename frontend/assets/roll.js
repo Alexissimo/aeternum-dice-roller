@@ -123,14 +123,14 @@
     const df = "⚡⚡";
     const f = "⚡";
 
-    if (icon === s3) return { success: 3, failure: 0, doubleFailure: 0 };
-    if (icon === s2) return { success: 2, failure: 0, doubleFailure: 0 };
-    if (icon === s1) return { success: 1, failure: 0, doubleFailure: 0 };
-    if (icon === df) return { success: 0, failure: 1, doubleFailure: 1 };
-    if (icon === f) return { success: 0, failure: 1, doubleFailure: 0 };
+    if (icon === s3) return { success: 3, failure: 0 };
+    if (icon === s2) return { success: 2, failure: 0 };
+    if (icon === s1) return { success: 1, failure: 0 };
+    if (icon === df) return { success: 0, failure: 2 };
+    if (icon === f) return { success: 0, failure: 1 };
 
     // fallback: unknown icon => 0/0
-    return { success: 0, failure: 0, doubleFailure: 0 };
+    return { success: 0, failure: 0 };
   }
 
   function computeSelectionLabel() {
@@ -215,7 +215,6 @@
     const perDieResults = {}; // sides -> array of icons
     const successByDie = {}; // sides -> success sum
     let totalFailures = 0;
-    let totalDoubleFailures = 0;
 
     // Roll each die type
     for (const d of diceList) {
@@ -233,7 +232,6 @@
         const nums = outcomeToNumbers(icon);
         succSum += nums.success;
         totalFailures += nums.failure;
-        totalDoubleFailures += nums.doubleFailure;
       }
 
       perDieResults[d.sides] = icons;
@@ -254,7 +252,7 @@
 
     const summaryLine = `${successParts.join(
       "  •  "
-    )}  •  fallimenti=${totalFailures}  •  ⚡⚡=${totalDoubleFailures}`;
+    )}  •  fallimenti=${totalFailures}`;
 
     renderResultBlock(perDieLines, summaryLine);
 

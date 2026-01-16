@@ -240,18 +240,20 @@ console.log("[room.js] loaded");
       .join(" | ");
   }
 
-  function formatSummary(summary) {
-    const successByDie = summary?.successByDie || {};
-    const sides = Object.keys(successByDie)
-      .map(Number)
-      .sort((a, b) => a - b);
+function formatSummary(summary) {
+  const successByDie = summary?.successByDie || {};
+  const sides = Object.keys(successByDie)
+    .map(Number)
+    .sort((a, b) => a - b);
 
-    const parts = sides.map((s) => `d${s} successi=${successByDie[String(s)]}`);
-    parts.push(`fallimenti=${summary?.failures ?? 0}`);
-    parts.push(`⚡⚡=${summary?.doubleFailures ?? 0}`);
+  const parts = sides.map(
+    (s) => `d${s} successi=${successByDie[String(s)]}`
+  );
 
-    return parts.join(" • ");
-  }
+  parts.push(`fallimenti=${summary?.failures ?? 0}`);
+  return parts.join(" • ");
+}
+
 
   function addFeedEntry(entry, labelOverride = null) {
     const item = document.createElement("div");
@@ -392,7 +394,7 @@ console.log("[room.js] loaded");
           author: "Sistema",
           selectionLabel: "",
           results: { perDie: {} },
-          summary: { successByDie: {}, failures: 0, doubleFailures: 0 },
+          summary: { successByDie: {}, failures: 0},
           ts: Date.now(),
         },
         `Room creata • Join: ${data.roomCode} • Master: ${data.masterCode}`

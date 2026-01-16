@@ -32,35 +32,30 @@ const ICONS = {
     label: "Fallimento",
     success: 0,
     isFailure: true,
-    isDoubleFailure: false,
   },
   DF: {
     icon: "⚡⚡",
     label: "Doppio Fallimento",
     success: 0,
     isFailure: true,
-    isDoubleFailure: true,
   },
   S: {
     icon: "🗡️",
     label: "Successo",
     success: 1,
     isFailure: false,
-    isDoubleFailure: false,
   },
   DS: {
     icon: "🗡️🗡️",
     label: "Doppio Successo",
     success: 2,
     isFailure: false,
-    isDoubleFailure: false,
   },
   TS: {
     icon: "🗡️🗡️🗡️",
     label: "Triplo Successo",
     success: 3,
     isFailure: false,
-    isDoubleFailure: false,
   },
 };
 
@@ -189,14 +184,11 @@ function selectionToLabel(sel) {
 }
 
 function rollFromSelection(sel) {
-  const perDie = {}; // { "6": ["⚡","🗡️",...], ... }
-  const successByDie = {}; // { "6": 4, ... }
-  let failures = 0;
-  let doubleFailures = 0;
+  const perDie = {};        // { "6": ["⚡","🗡️",...], ... }
+  const successByDie = {};  // { "6": 4, ... }
+  let failures = 0;         // totale fallimenti (⚡ + ⚡⚡)
 
-  const sides = Object.keys(sel)
-    .map(Number)
-    .sort((a, b) => a - b);
+  const sides = Object.keys(sel).map(Number).sort((a,b)=>a-b);
   for (const s of sides) {
     const count = sel[String(s)];
     const icons = [];
@@ -206,8 +198,13 @@ function rollFromSelection(sel) {
       const out = rollOne(s);
       icons.push(out.icon);
       succSum += out.success;
-      if (out.isFailure) failures += 1;
-      if (out.isDoubleFailure) doubleFailures += 1;
+
+      // ⚡ = +1, ⚡⚡ = +2
+      if (out.icon === "⚡") {
+        failures += 1;
+      } else if (out.icon === "⚡⚡") {
+        failures += 2;
+      }
     }
 
     perDie[String(s)] = icons;
@@ -218,9 +215,8 @@ function rollFromSelection(sel) {
     results: { perDie },
     summary: {
       successByDie,
-      failures,
-      doubleFailures,
-    },
+      failures
+    }
   };
 }
 
