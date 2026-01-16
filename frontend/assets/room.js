@@ -240,20 +240,17 @@ console.log("[room.js] loaded");
       .join(" | ");
   }
 
-function formatSummary(summary) {
-  const successByDie = summary?.successByDie || {};
-  const sides = Object.keys(successByDie)
-    .map(Number)
-    .sort((a, b) => a - b);
+  function formatSummary(summary) {
+    const successByDie = summary?.successByDie || {};
+    const sides = Object.keys(successByDie)
+      .map(Number)
+      .sort((a, b) => a - b);
 
-  const parts = sides.map(
-    (s) => `d${s} successi=${successByDie[String(s)]}`
-  );
+    const parts = sides.map((s) => `d${s} successi=${successByDie[String(s)]}`);
 
-  parts.push(`fallimenti=${summary?.failures ?? 0}`);
-  return parts.join(" • ");
-}
-
+    parts.push(`fallimenti=${summary?.failures ?? 0}`);
+    return parts.join(" • ");
+  }
 
   function addFeedEntry(entry, labelOverride = null) {
     const item = document.createElement("div");
@@ -269,25 +266,50 @@ function formatSummary(summary) {
           : `SEGRETO: ${entry.author} ↔ GM ${entry.gm}`;
 
     const shortRight = entry.selectionLabel || "";
-    const details = formatPerDieResults(entry.results?.perDie || {});
-    const summary = formatSummary(entry.summary || {});
+
+    const perDie = entry.results?.perDie || {};
+    const hasDice =
+      perDie &&
+      typeof perDie === "object" &&
+      Object.keys(perDie).some(
+        (k) => Array.isArray(perDie[k]) && perDie[k].length > 0
+      );
+
+    const summaryObj = entry.summary || {};
+    const hasSummary =
+      summaryObj &&
+      (Object.keys(summaryObj.successByDie || {}).length > 0 ||
+        (summaryObj.failures ?? 0) > 0);
+
+    // Render dettagli solo se è un tiro vero
+    const detailsHtml = hasDice
+      ? `<div class="hmeta" style="margin-top:8px">${formatPerDieResults(perDie)}</div>`
+      : "";
+    const summaryHtml =
+      hasDice || hasSummary
+        ? `<div class="hmeta" style="margin-top:6px">${formatSummary(summaryObj)}</div>`
+        : "";
 
     item.innerHTML = `
-      <div class="hline">
-        <div class="hleft">
-          <div class="htitle">${titleLeft}</div>
-          <div class="hmeta">${time}</div>
-        </div>
-        <div class="hright">${shortRight}</div>
+    <div class="hline">
+      <div class="hleft">
+        <div class="htitle">${titleLeft}</div>
+        <div class="hmeta">${time}</div>
       </div>
-      <div class="hmeta" style="margin-top:8px">${details}</div>
-      <div class="hmeta" style="margin-top:6px">${summary}</div>
-    `;
+      <div class="hright">${shortRight}</div>
+    </div>
+    ${detailsHtml}
+    ${summaryHtml}
+  `;
 
-    const empty =
-      feed.firstChild?.querySelector?.(".hmeta")?.textContent ===
-      "Nessun evento ancora.";
-    if (empty) feed.innerHTML = "";
+    if (
+      feed.firstChild &&
+      feed.firstChild.querySelector &&
+      feed.firstChild.querySelector(".hmeta")?.textContent ===
+        "Nessun evento ancora."
+    ) {
+      feed.innerHTML = "";
+    }
 
     feed.prepend(item);
   }
@@ -394,7 +416,7 @@ function formatSummary(summary) {
           author: "Sistema",
           selectionLabel: "",
           results: { perDie: {} },
-          summary: { successByDie: {}, failures: 0},
+          summary: { successByDie: {}, failures: 0 },
           ts: Date.now(),
         },
         `Room creata • Join: ${data.roomCode} • Master: ${data.masterCode}`
