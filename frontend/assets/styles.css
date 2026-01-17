@@ -396,3 +396,20 @@ header.container {
   font-weight: 700;
   z-index: 9999;
 }
+
+.auto-reset-row {
+  margin-top: 14px;
+  align-items: center;
+}
+
+.auto-reset-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  user-select: none;
+  cursor: pointer;
+}
+
+.auto-reset-label input {
+  transform: translateY(1px);
+}

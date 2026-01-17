@@ -92,9 +92,11 @@
           <div class="row space-between">
             <div>
               <div class="htitle">Codici room</div>
-              <div class="hmeta">
-                Condividi il Join code. Il Master code resta privato.
-              </div>
+<div class="hmeta">
+  Condividi il <b>Join code</b> con i player. Il <b>Master code</b> resta privato (solo GM).
+  Usa <b>“Copia invito”</b> per copiare un link già pronto da inviare.
+</div>
+
             </div>
             <button class="btn" id="copyInviteBtn" type="button">
               Copia invito
@@ -120,11 +122,6 @@
                 <button class="btn" id="copyMasterBtn" type="button">Copia</button>
               </div>
             </div>
-
-
-          <p class="muted" style="margin: 10px 0 0 0">
-            Link invito: <span id="inviteLinkOut">—</span>
-          </p>
         </div>
 
         <!-- Selezione dadi: riusa i pulsanti del tuo tool -->
@@ -137,10 +134,10 @@
           <button class="btn" id="rollGmBtn" style="display:none;">Lancia GM-only</button>
         </div>
 
-        <div class="row" style="margin-top:10px; gap:10px; flex-wrap:wrap;">
-          <label class="muted" style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+        <div class="row auto-reset-row">
+          <label class="auto-reset-label">
             <input type="checkbox" id="autoResetToggle" />
-            Auto-reset dopo tiro
+            <span>Auto-reset dopo tiro</span>
           </label>
         </div>
 

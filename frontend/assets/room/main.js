@@ -110,8 +110,6 @@ console.log("[room/main.js] loaded");
 
     const isGM = !!session.me?.isGM;
     d.joinCodeOut.value = session.roomCode || "";
-    d.inviteLinkOut.textContent = buildInviteLink(session.roomCode || "");
-
     d.masterCodeOut.value = isGM ? session.masterCode || "" : "—";
     d.masterCodeOut.type = "password";
     const wrap = d.masterCodeOut.closest("div");
@@ -135,11 +133,19 @@ console.log("[room/main.js] loaded");
 
     if (d.targetPlayer) {
       d.targetPlayer.innerHTML = "";
-      for (const t of targets) {
+
+      if (!targets.length) {
         const opt = document.createElement("option");
-        opt.value = t.socketId;
-        opt.textContent = t.nickname;
+        opt.value = "";
+        opt.textContent = "— nessun player —";
         d.targetPlayer.appendChild(opt);
+      } else {
+        for (const t of targets) {
+          const opt = document.createElement("option");
+          opt.value = t.socketId;
+          opt.textContent = t.nickname;
+          d.targetPlayer.appendChild(opt);
+        }
       }
     }
 
@@ -185,6 +191,13 @@ console.log("[room/main.js] loaded");
         session.me = data.me;
         session.roomLocked = !!data.roomLocked;
 
+        if (d.lockStatus)
+          d.lockStatus.textContent = session.roomLocked ? "Bloccata" : "Aperta";
+        if (d.lockRoomBtn)
+          d.lockRoomBtn.textContent = session.roomLocked
+            ? "Sblocca ingressi"
+            : "Blocca ingressi";
+
         updatePlayersUI(data.players || []);
         showRoomUI();
         showCodesBox();
@@ -202,6 +215,13 @@ console.log("[room/main.js] loaded");
         session.masterCode = data.masterCode || null;
         session.me = data.me;
         session.roomLocked = !!data.roomLocked;
+
+        if (d.lockStatus)
+          d.lockStatus.textContent = session.roomLocked ? "Bloccata" : "Aperta";
+        if (d.lockRoomBtn)
+          d.lockRoomBtn.textContent = session.roomLocked
+            ? "Sblocca ingressi"
+            : "Blocca ingressi";
 
         updatePlayersUI(data.players || []);
         showRoomUI();
@@ -224,7 +244,16 @@ console.log("[room/main.js] loaded");
       socket.on("players_update", ({ players }) =>
         updatePlayersUI(players || []),
       );
-      socket.on("room_state", ({ locked }) => (session.roomLocked = !!locked));
+      socket.on("room_state", ({ locked }) => {
+        session.roomLocked = !!locked;
+
+        if (d.lockStatus)
+          d.lockStatus.textContent = session.roomLocked ? "Bloccata" : "Aperta";
+        if (d.lockRoomBtn)
+          d.lockRoomBtn.textContent = session.roomLocked
+            ? "Sblocca ingressi"
+            : "Blocca ingressi";
+      });
 
       socket.on("gm_status", ({ status, graceSeconds }) => {
         const msg =
@@ -462,7 +491,21 @@ console.log("[room/main.js] loaded");
       targetSocketId,
     });
 
-    toast("Player rimosso (richiesta inviata).");
+    toast("Player rimosso");
+  });
+
+  d.lockRoomBtn?.addEventListener("click", () => {
+    if (!socket || !session.roomCode)
+      return toast("Non sei in una room.", 1800);
+    if (!session.me?.isGM) return;
+
+    socket.emit("room_lock_set", {
+      roomCode: session.roomCode,
+      masterCode: session.masterCode,
+      locked: !session.roomLocked,
+    });
+
+    toast(!session.roomLocked ? "Ingressi bloccati" : "Ingressi sbloccati");
   });
 
   // UI toggle “in-code” (no HTML changes): click feedCard title area to toggle collapsed
