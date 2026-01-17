@@ -104,11 +104,22 @@ console.log("[room.js] loaded");
     refreshSelectionUI();
   }
 
+  const toastEl = $("toast");
+  let toastTimer = null;
+
+  function toast(msg) {
+    if (!toastEl) return;
+    toastEl.textContent = msg;
+    toastEl.style.display = "block";
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => (toastEl.style.display = "none"), 1400);
+  }
+
   async function copyText(text) {
     if (!text) return;
     try {
       await navigator.clipboard.writeText(text);
-      alert("Copiato ✅");
+      toast("Copiato ✅");
     } catch {
       prompt("Copia manualmente:", text);
     }
@@ -320,16 +331,17 @@ console.log("[room.js] loaded");
       .map((p) => (p.isGM ? `${p.nickname} (GM)` : p.nickname))
       .join(" • ");
 
-    if (session.me?.isGM) {
-      const targets = players.filter((p) => !p.isGM);
-      targetPlayer.innerHTML = "";
-      for (const t of targets) {
-        const opt = document.createElement("option");
-        opt.value = t.socketId;
-        opt.textContent = t.nickname;
-        targetPlayer.appendChild(opt);
-      }
-    }
+if (session.me?.isGM && kickPlayer) {
+  const targets = players.filter((p) => !p.isGM);
+  kickPlayer.innerHTML = "";
+  for (const t of targets) {
+    const opt = document.createElement("option");
+    opt.value = t.socketId;
+    opt.textContent = t.nickname;
+    kickPlayer.appendChild(opt);
+  }
+}
+
   }
 
   function showRoomUI() {
@@ -548,6 +560,7 @@ console.log("[room.js] loaded");
     }
 
     socket.emit("roll_public", { roomCode: session.roomCode, selection });
+    maybeAutoReset()
   });
 
   rollGmBtn?.addEventListener("click", () => {
@@ -564,6 +577,7 @@ console.log("[room.js] loaded");
       masterCode: session.masterCode,
       selection,
     });
+    maybeAutoReset()
   });
 
   requestSecretBtn?.addEventListener("click", () => {
@@ -595,6 +609,7 @@ console.log("[room.js] loaded");
       requestId: pendingSecret.requestId,
       selection,
     });
+    maybeAutoReset()
 
     pendingSecret = null;
     sendSecretBtn.style.display = "none";
@@ -615,6 +630,18 @@ console.log("[room.js] loaded");
     toggleMasterBtn.textContent = isHidden ? "Nascondi" : "Mostra";
   });
 
+  const autoResetToggle = $("autoResetToggle");
+  const LS_AUTO_RESET = "aeternum_auto_reset";
+  if (autoResetToggle) {
+    autoResetToggle.checked = localStorage.getItem(LS_AUTO_RESET) === "1";
+    autoResetToggle.addEventListener("change", () => {
+      localStorage.setItem(LS_AUTO_RESET, autoResetToggle.checked ? "1" : "0");
+    });
+  }
+  function maybeAutoReset() {
+    if (autoResetToggle?.checked) clearSelection();
+  }
+
   connRetryBtn?.addEventListener("click", async () => {
     try {
       // se esiste un socket vecchio, chiudiamolo
@@ -628,6 +655,70 @@ console.log("[room.js] loaded");
       setConnUI("offline", e?.message || "Errore durante il retry.");
     }
   });
+
+  document.addEventListener("keydown", (e) => {
+  if (!session.roomCode) return;
+
+  if (e.key === "Escape") clearSelection();
+
+  if (e.key === "Enter" && !e.repeat) {
+    if (e.shiftKey && session.me?.isGM && rollGmBtn && rollGmBtn.style.display !== "none") {
+      rollGmBtn.click();
+      e.preventDefault();
+      return;
+    }
+    rollPublicBtn?.click();
+    e.preventDefault();
+  }
+});
+
+let roomLocked = false;
+
+lockRoomBtn?.addEventListener("click", () => {
+  if (!socket || !session.roomCode || !session.me?.isGM) return;
+  socket.emit("room_lock_set", {
+    roomCode: session.roomCode,
+    masterCode: session.masterCode,
+    locked: !roomLocked,
+  });
+});
+
+
+kickBtn?.addEventListener("click", () => {
+  if (!socket || !session.roomCode || !session.me?.isGM) return;
+  const targetSocketId = kickPlayer?.value;
+  if (!targetSocketId) return toast("Nessun player da rimuovere.");
+  socket.emit("room_kick_player", {
+    roomCode: session.roomCode,
+    masterCode: session.masterCode,
+    targetSocketId,
+  });
+});
+
+socket.on("room_lock_status", ({ locked }) => {
+  roomLocked = !!locked;
+  if (lockStatus) lockStatus.textContent = roomLocked ? "Bloccata" : "Aperta";
+  if (lockRoomBtn) lockRoomBtn.textContent = roomLocked ? "Sblocca ingressi" : "Blocca ingressi";
+});
+
+
+window.addEventListener("beforeunload", (e) => {
+  if (!session.roomCode) return;
+  e.preventDefault();
+  e.returnValue = "";
+});
+
+window.addEventListener("beforeunload", (e) => {
+  if (!session.roomCode) return;
+  e.preventDefault();
+  e.returnValue = "";
+});
+
+const lockRoomBtn = $("lockRoomBtn");
+const lockStatus = $("lockStatus");
+const kickPlayer = $("kickPlayer");
+const kickBtn = $("kickBtn");
+
 
   // Autofill join code da ?room=XXXX
   (function autofillRoomFromQuery() {

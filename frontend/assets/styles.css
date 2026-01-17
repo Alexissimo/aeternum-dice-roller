@@ -381,3 +381,18 @@ code.kbd {
 header.container {
   margin-bottom: 32px;
 }
+
+.toast{
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(0,0,0,.55);
+  border: 1px solid rgba(255,255,255,.12);
+  backdrop-filter: blur(10px);
+  color: #fff;
+  font-weight: 700;
+  z-index: 9999;
+}

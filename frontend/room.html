@@ -5,8 +5,11 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Aeternum — Room</title>
     <link rel="stylesheet" href="assets/styles.css" />
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#0b0f16" />
   </head>
   <body>
+    <div id="toast" class="toast" style="display:none;"></div>
     <header class="container">
       <div class="topbar">
         <div>
@@ -134,6 +137,13 @@
           <button class="btn" id="rollGmBtn" style="display:none;">Lancia GM-only</button>
         </div>
 
+        <div class="row" style="margin-top:10px; gap:10px; flex-wrap:wrap;">
+          <label class="muted" style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="checkbox" id="autoResetToggle" />
+            Auto-reset dopo tiro
+          </label>
+        </div>
+
 
         <div class="warn" style="margin-top: 10px">
           <div class="muted">Selezione: <span id="selectionTag">—</span></div>
@@ -170,6 +180,26 @@
               Richiedi tiro segreto
             </button>
           </div>
+<hr style="border:none;border-top:1px solid rgba(255,255,255,.08);margin:14px 0;" />
+
+<div class="split">
+  <div>
+    <label>Room</label>
+    <div class="row">
+      <button class="btn" id="lockRoomBtn" type="button">Blocca ingressi</button>
+      <span class="muted" id="lockStatus">—</span>
+    </div>
+  </div>
+
+  <div>
+    <label>Kick player</label>
+    <div class="row">
+      <select id="kickPlayer"></select>
+      <button class="btn" id="kickBtn" type="button">Rimuovi</button>
+    </div>
+  </div>
+</div>
+
         </div>
       </section>
 
@@ -189,10 +219,15 @@
         >Room viva finché il GM è online (o rientra entro 5 minuti).</span
       >
     </footer>
+<script>
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  }
+</script>
 
     <!-- Socket.IO client: servito dal backend -->
     <script id="socketioScript"></script>
     <script src="assets/presets.js"></script>
-    <script src="assets/room.js"></script>
+<script type="module" src="assets/room/main.js"></script>
   </body>
 </html>

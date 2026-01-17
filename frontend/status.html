@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Aeternum — Status</title>
+  <link rel="stylesheet" href="assets/styles.css" />
+</head>
+<body>
+  <header class="container">
+    <div class="topbar">
+      <div>
+        <h1>Status — Aeternum</h1>
+        <p class="sub">Health check e latenza del backend.</p>
+      </div>
+      <nav class="nav">
+        <a class="btn" href="index.html">Home</a>
+        <a class="btn" href="room.html">Room</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h2>Backend</h2>
+      <div class="muted">Endpoint: <span id="endpoint">—</span></div>
+      <div style="margin-top:10px" class="muted">Stato: <span id="ok">—</span></div>
+      <div class="muted">Latenza: <span id="lat">—</span></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" id="retry">Riprova</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const BACKEND = "https://aeternum-dice-roller.onrender.com";
+    const $ = (id) => document.getElementById(id);
+    $("endpoint").textContent = BACKEND;
+
+    async function ping() {
+      $("ok").textContent = "…";
+      $("lat").textContent = "…";
+      const t0 = performance.now();
+      try {
+        const r = await fetch(BACKEND + "/health", { cache: "no-store" });
+        const t1 = performance.now();
+        const js = await r.json().catch(() => ({}));
+        $("ok").textContent = r.ok && js.ok ? "🟢 OK" : "🔴 KO";
+        $("lat").textContent = Math.round(t1 - t0) + " ms";
+      } catch (e) {
+        $("ok").textContent = "🔴 KO";
+        $("lat").textContent = "—";
+      }
+    }
+    $("retry").addEventListener("click", ping);
+    ping();
+  </script>
+</body>
+</html>
