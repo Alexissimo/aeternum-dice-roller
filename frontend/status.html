@@ -33,7 +33,11 @@
   </main>
 
   <script>
-    const BACKEND = "https://aeternum-dice-roller.onrender.com";
+const BACKEND =
+  location.hostname === "localhost" || location.hostname === "127.0.0.1"
+    ? "http://localhost:3000"
+    : "https://aeternum-dice-roller.onrender.com";
+
     const $ = (id) => document.getElementById(id);
     $("endpoint").textContent = BACKEND;
 

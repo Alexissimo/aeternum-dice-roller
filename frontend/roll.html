@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="it">
   <head>
+    <link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#0b0f16" />
+
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Aeternum — Lancia i dadi</title>
@@ -77,8 +80,13 @@
         >Risultati e cronologia restano nel browser (localStorage).</span
       >
     </footer>
+<script>
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  }
+</script>
 
-    <script src="assets/presets.js"></script>
-    <script src="assets/roll.js"></script>
+<script src="assets/presets.js"></script>
+<script type="module" src="assets/roll/main.js"></script>
   </body>
 </html>
