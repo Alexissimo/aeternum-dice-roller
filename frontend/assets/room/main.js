@@ -2,19 +2,38 @@ import { BACKEND_URL } from "./config.js";
 import { getDom } from "./dom.js";
 import { toast, copyText } from "./toast.js";
 import { loadNick, saveNick, loadUi, saveUi } from "./storage.js";
-import { buildDiceGrid, refreshSelectionUI, selectionToPayload, clearSelection } from "./dice.js";
+import {
+  buildDiceGrid,
+  refreshSelectionUI,
+  selectionToPayload,
+  clearSelection,
+} from "./dice.js";
 import { setFeedEmpty, addFeedEntry } from "./feed.js";
 import { connectSocket } from "./socket.js";
-import { installBeforeUnloadGuard, installShortcuts, buildInviteLink } from "./ui.js";
+import {
+  installBeforeUnloadGuard,
+  installShortcuts,
+  buildInviteLink,
+} from "./ui.js";
 
 console.log("[room/main.js] loaded");
 
 (function () {
   const d = getDom();
+  const autoResetEl = document.getElementById("autoResetToggle");
 
   const diceList = (window.AETERNUM_PRESET_DICE || []).slice();
   const selectedCounts = {};
   const ui = loadUi();
+
+if (autoResetEl) {
+  autoResetEl.checked = !!ui.autoReset;
+  autoResetEl.addEventListener("change", () => {
+    ui.autoReset = !!autoResetEl.checked;
+    saveUi(ui);
+    toast(ui.autoReset ? "Auto-reset ON" : "Auto-reset OFF");
+  });
+}
 
   let socket = null;
 
@@ -38,7 +57,8 @@ console.log("[room/main.js] loaded");
 
     if (state === "connecting") {
       d.connTitle.textContent = "🟡 Connessione…";
-      d.connMsg.textContent = msg || "Sto contattando il server (può richiedere qualche secondo).";
+      d.connMsg.textContent =
+        msg || "Sto contattando il server (può richiedere qualche secondo).";
       d.connRetryBtn.style.display = "none";
     }
     if (state === "online") {
@@ -61,7 +81,10 @@ console.log("[room/main.js] loaded");
 
   function selectionLabelText() {
     // quick label (reuse refreshSelectionUI)
-    refreshSelectionUI({ diceGrid: d.diceGrid, selectionTag: d.selectionTag }, selectedCounts);
+    refreshSelectionUI(
+      { diceGrid: d.diceGrid, selectionTag: d.selectionTag },
+      selectedCounts,
+    );
   }
 
   function showRoomUI() {
@@ -71,7 +94,9 @@ console.log("[room/main.js] loaded");
     setFeedEmpty(d.feed);
 
     const base = `Room ${session.roomCode}`;
-    d.roomMeta.textContent = session.me?.isGM ? `${base} • Sei GM` : `${base} • Sei player`;
+    d.roomMeta.textContent = session.me?.isGM
+      ? `${base} • Sei GM`
+      : `${base} • Sei player`;
 
     d.rollGmBtn.style.display = session.me?.isGM ? "" : "none";
     d.gmTools.style.display = session.me?.isGM ? "" : "none";
@@ -87,7 +112,7 @@ console.log("[room/main.js] loaded");
     d.joinCodeOut.value = session.roomCode || "";
     d.inviteLinkOut.textContent = buildInviteLink(session.roomCode || "");
 
-    d.masterCodeOut.value = isGM ? (session.masterCode || "") : "—";
+    d.masterCodeOut.value = isGM ? session.masterCode || "" : "—";
     d.masterCodeOut.type = "password";
     const wrap = d.masterCodeOut.closest("div");
     if (wrap) wrap.style.display = isGM ? "" : "none";
@@ -124,7 +149,9 @@ console.log("[room/main.js] loaded");
       });
 
       // wire events
-      socket.on("error_message", ({ message }) => toast(message || "Errore", 2000));
+      socket.on("error_message", ({ message }) =>
+        toast(message || "Errore", 2000),
+      );
 
       socket.on("room_created", (data) => {
         session.roomCode = data.roomCode;
@@ -136,8 +163,11 @@ console.log("[room/main.js] loaded");
         showRoomUI();
         showCodesBox();
 
-        addFeedEntry(d.feed, { type: "system", title: "Room creata", ts: Date.now() }, ui,
-          `Room creata • Join: ${data.roomCode} • Master: ${data.masterCode}`
+        addFeedEntry(
+          d.feed,
+          { type: "system", title: "Room creata", ts: Date.now() },
+          ui,
+          `Room creata • Join: ${data.roomCode} • Master: ${data.masterCode}`,
         );
       });
 
@@ -154,20 +184,33 @@ console.log("[room/main.js] loaded");
         const history = (data.history || []).slice().reverse();
         for (const e of history) addFeedEntry(d.feed, e, ui);
 
-        addFeedEntry(d.feed, { type: "system", title: "Entrato in room", ts: Date.now() }, ui,
-          `Entrato in room come ${session.me.nickname}`
+        addFeedEntry(
+          d.feed,
+          { type: "system", title: "Entrato in room", ts: Date.now() },
+          ui,
+          `Entrato in room come ${session.me.nickname}`,
         );
       });
 
-      socket.on("join_denied", ({ message }) => toast(message || "Join rifiutato", 2500));
-      socket.on("players_update", ({ players }) => updatePlayersUI(players || []));
+      socket.on("join_denied", ({ message }) =>
+        toast(message || "Join rifiutato", 2500),
+      );
+      socket.on("players_update", ({ players }) =>
+        updatePlayersUI(players || []),
+      );
       socket.on("room_state", ({ locked }) => (session.roomLocked = !!locked));
 
       socket.on("gm_status", ({ status, graceSeconds }) => {
-        const msg = status === "disconnected"
-          ? `GM disconnesso • grace ${graceSeconds}s`
-          : `GM online`;
-        addFeedEntry(d.feed, { type: "system", title: msg, ts: Date.now() }, ui, msg);
+        const msg =
+          status === "disconnected"
+            ? `GM disconnesso • grace ${graceSeconds}s`
+            : `GM online`;
+        addFeedEntry(
+          d.feed,
+          { type: "system", title: msg, ts: Date.now() },
+          ui,
+          msg,
+        );
       });
 
       socket.on("room_closed", ({ reason }) => {
@@ -179,15 +222,18 @@ console.log("[room/main.js] loaded");
       socket.on("gm_roll_feed", (entry) => addFeedEntry(d.feed, entry, ui));
       socket.on("secret_roll_feed", (entry) => addFeedEntry(d.feed, entry, ui));
 
-      socket.on("secret_roll_request", ({ requestId, roomCode, fromGM, note }) => {
-        pendingSecret = { requestId, roomCode, fromGM, note: note || "" };
-        d.sendSecretBtn.style.display = "";
-        d.rollPublicBtn.disabled = true;
-        alert(
-          `Tiro segreto richiesto da ${fromGM}${note ? `\nNota: ${note}` : ""}\n\n` +
-          `Seleziona i dadi e premi "Invia tiro segreto 🔒".`
-        );
-      });
+      socket.on(
+        "secret_roll_request",
+        ({ requestId, roomCode, fromGM, note }) => {
+          pendingSecret = { requestId, roomCode, fromGM, note: note || "" };
+          d.sendSecretBtn.style.display = "";
+          d.rollPublicBtn.disabled = true;
+          alert(
+            `Tiro segreto richiesto da ${fromGM}${note ? `\nNota: ${note}` : ""}\n\n` +
+              `Seleziona i dadi e premi "Invia tiro segreto 🔒".`,
+          );
+        },
+      );
 
       return true;
     } catch (e) {
@@ -206,9 +252,13 @@ console.log("[room/main.js] loaded");
     return sel;
   }
 
-  function maybeAutoReset() {
-    if (ui.autoReset) clearSelection(selectedCounts, { diceGrid: d.diceGrid, selectionTag: d.selectionTag });
+function maybeAutoReset() {
+  const enabled = autoResetEl ? !!autoResetEl.checked : !!ui.autoReset;
+  if (enabled) {
+    clearSelection(selectedCounts, { diceGrid: d.diceGrid, selectionTag: d.selectionTag });
   }
+}
+
 
   // --- init UI & dice ---
   if (d.nickEl && !d.nickEl.value) d.nickEl.value = loadNick();
@@ -218,7 +268,7 @@ console.log("[room/main.js] loaded");
     { diceGrid: d.diceGrid, selectionTag: d.selectionTag },
     diceList,
     selectedCounts,
-    selectionLabelText
+    selectionLabelText,
   );
 
   // --- query autofill room ---
@@ -255,7 +305,9 @@ console.log("[room/main.js] loaded");
 
   d.joinRoomBtn?.addEventListener("click", async () => {
     const nickname = String(d.nickEl.value || "").trim();
-    const roomCode = String(d.joinCodeEl.value || "").trim().toUpperCase();
+    const roomCode = String(d.joinCodeEl.value || "")
+      .trim()
+      .toUpperCase();
     if (!nickname) return toast("Inserisci un nickname.", 1800);
     if (!roomCode) return toast("Inserisci il join code.", 1800);
     saveNick(nickname);
@@ -266,8 +318,12 @@ console.log("[room/main.js] loaded");
 
   d.rejoinMasterBtn?.addEventListener("click", async () => {
     const nickname = String(d.nickEl.value || "").trim();
-    const roomCode = String(d.joinCodeEl.value || "").trim().toUpperCase();
-    const masterCode = String(d.masterCodeEl.value || "").trim().toUpperCase();
+    const roomCode = String(d.joinCodeEl.value || "")
+      .trim()
+      .toUpperCase();
+    const masterCode = String(d.masterCodeEl.value || "")
+      .trim()
+      .toUpperCase();
     if (!nickname) return toast("Inserisci un nickname.", 1800);
     if (!roomCode) return toast("Inserisci il join code.", 1800);
     if (!masterCode) return toast("Inserisci il master code.", 1800);
@@ -278,7 +334,8 @@ console.log("[room/main.js] loaded");
   });
 
   d.rollPublicBtn?.addEventListener("click", () => {
-    if (!socket || !session.roomCode) return toast("Non sei in una room.", 1800);
+    if (!socket || !session.roomCode)
+      return toast("Non sei in una room.", 1800);
     if (pendingSecret) return toast("Hai un tiro segreto in corso.", 1800);
 
     const selection = requireSelection();
@@ -289,13 +346,18 @@ console.log("[room/main.js] loaded");
   });
 
   d.rollGmBtn?.addEventListener("click", () => {
-    if (!socket || !session.roomCode) return toast("Non sei in una room.", 1800);
+    if (!socket || !session.roomCode)
+      return toast("Non sei in una room.", 1800);
     if (!session.me?.isGM) return;
 
     const selection = requireSelection();
     if (!selection) return;
 
-    socket.emit("roll_gm", { roomCode: session.roomCode, masterCode: session.masterCode, selection });
+    socket.emit("roll_gm", {
+      roomCode: session.roomCode,
+      masterCode: session.masterCode,
+      selection,
+    });
     maybeAutoReset();
   });
 
@@ -304,7 +366,8 @@ console.log("[room/main.js] loaded");
     if (!session.me?.isGM) return;
 
     const targetSocketId = d.targetPlayer.value;
-    if (!targetSocketId) return toast("Nessun player target disponibile.", 2000);
+    if (!targetSocketId)
+      return toast("Nessun player target disponibile.", 2000);
 
     socket.emit("secret_roll_request", {
       roomCode: session.roomCode,
@@ -336,13 +399,20 @@ console.log("[room/main.js] loaded");
   });
 
   d.resetSelectionBtn?.addEventListener("click", () => {
-    clearSelection(selectedCounts, { diceGrid: d.diceGrid, selectionTag: d.selectionTag });
+    clearSelection(selectedCounts, {
+      diceGrid: d.diceGrid,
+      selectionTag: d.selectionTag,
+    });
     toast("Selezione azzerata");
   });
 
   d.copyJoinBtn?.addEventListener("click", () => copyText(d.joinCodeOut.value));
-  d.copyMasterBtn?.addEventListener("click", () => copyText(d.masterCodeOut.value));
-  d.copyInviteBtn?.addEventListener("click", () => copyText(buildInviteLink(session.roomCode || "")));
+  d.copyMasterBtn?.addEventListener("click", () =>
+    copyText(d.masterCodeOut.value),
+  );
+  d.copyInviteBtn?.addEventListener("click", () =>
+    copyText(buildInviteLink(session.roomCode || "")),
+  );
 
   d.toggleMasterBtn?.addEventListener("click", () => {
     const isHidden = d.masterCodeOut.type === "password";
@@ -358,13 +428,15 @@ console.log("[room/main.js] loaded");
   });
 
   // UI toggle auto-reset via Alt+R
-  window.addEventListener("keydown", (e) => {
-    if (e.altKey && (e.key === "r" || e.key === "R")) {
-      ui.autoReset = !ui.autoReset;
-      saveUi(ui);
-      toast(ui.autoReset ? "Auto-reset ON" : "Auto-reset OFF");
-    }
-  });
+window.addEventListener("keydown", (e) => {
+  if (e.altKey && (e.key === "r" || e.key === "R")) {
+    ui.autoReset = !ui.autoReset;
+    saveUi(ui);
+    if (autoResetEl) autoResetEl.checked = ui.autoReset;
+    toast(ui.autoReset ? "Auto-reset ON" : "Auto-reset OFF");
+  }
+});
+
 
   // initial conn UI hidden until needed
   setConnUI("hidden");
