@@ -51,6 +51,10 @@ export function getDom() {
     targetPlayer: $("targetPlayer"),
     requestSecretBtn: $("requestSecretBtn"),
     secretNote: $("secretNote"),
+    kickPlayer: document.getElementById("kickPlayer"),
+    kickBtn: document.getElementById("kickBtn"),
+    lockRoomBtn: document.getElementById("lockRoomBtn"),
+    lockStatus: document.getElementById("lockStatus"),
 
     // socket loader tag
     socketioScript: $("socketioScript"),

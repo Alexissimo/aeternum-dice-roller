@@ -26,14 +26,14 @@ console.log("[room/main.js] loaded");
   const selectedCounts = {};
   const ui = loadUi();
 
-if (autoResetEl) {
-  autoResetEl.checked = !!ui.autoReset;
-  autoResetEl.addEventListener("change", () => {
-    ui.autoReset = !!autoResetEl.checked;
-    saveUi(ui);
-    toast(ui.autoReset ? "Auto-reset ON" : "Auto-reset OFF");
-  });
-}
+  if (autoResetEl) {
+    autoResetEl.checked = !!ui.autoReset;
+    autoResetEl.addEventListener("change", () => {
+      ui.autoReset = !!autoResetEl.checked;
+      saveUi(ui);
+      toast(ui.autoReset ? "Auto-reset ON" : "Auto-reset OFF");
+    });
+  }
 
   let socket = null;
 
@@ -123,18 +123,44 @@ if (autoResetEl) {
 
   function updatePlayersUI(players) {
     session.players = players || [];
+
     d.playersList.textContent = session.players
       .map((p) => (p.isGM ? `${p.nickname} (GM)` : p.nickname))
       .join(" • ");
 
-    if (session.me?.isGM) {
-      const targets = session.players.filter((p) => !p.isGM);
+    if (!session.me?.isGM) return;
+
+    // ---- target segreto ----
+    const targets = session.players.filter((p) => !p.isGM);
+
+    if (d.targetPlayer) {
       d.targetPlayer.innerHTML = "";
       for (const t of targets) {
         const opt = document.createElement("option");
         opt.value = t.socketId;
         opt.textContent = t.nickname;
         d.targetPlayer.appendChild(opt);
+      }
+    }
+
+    // ---- kick player ----
+    if (d.kickPlayer) {
+      d.kickPlayer.innerHTML = "";
+
+      if (!targets.length) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "— nessun player —";
+        d.kickPlayer.appendChild(opt);
+        if (d.kickBtn) d.kickBtn.disabled = true;
+      } else {
+        for (const t of targets) {
+          const opt = document.createElement("option");
+          opt.value = t.socketId;
+          opt.textContent = t.nickname;
+          d.kickPlayer.appendChild(opt);
+        }
+        if (d.kickBtn) d.kickBtn.disabled = false;
       }
     }
   }
@@ -252,13 +278,15 @@ if (autoResetEl) {
     return sel;
   }
 
-function maybeAutoReset() {
-  const enabled = autoResetEl ? !!autoResetEl.checked : !!ui.autoReset;
-  if (enabled) {
-    clearSelection(selectedCounts, { diceGrid: d.diceGrid, selectionTag: d.selectionTag });
+  function maybeAutoReset() {
+    const enabled = autoResetEl ? !!autoResetEl.checked : !!ui.autoReset;
+    if (enabled) {
+      clearSelection(selectedCounts, {
+        diceGrid: d.diceGrid,
+        selectionTag: d.selectionTag,
+      });
+    }
   }
-}
-
 
   // --- init UI & dice ---
   if (d.nickEl && !d.nickEl.value) d.nickEl.value = loadNick();
@@ -420,6 +448,23 @@ function maybeAutoReset() {
     d.toggleMasterBtn.textContent = isHidden ? "Nascondi" : "Mostra";
   });
 
+  d.kickBtn?.addEventListener("click", () => {
+    if (!socket || !session.roomCode)
+      return toast("Non sei in una room.", 1800);
+    if (!session.me?.isGM) return;
+
+    const targetSocketId = d.kickPlayer?.value;
+    if (!targetSocketId) return toast("Nessun player da rimuovere.", 1800);
+
+    socket.emit("room_kick_player", {
+      roomCode: session.roomCode,
+      masterCode: session.masterCode,
+      targetSocketId,
+    });
+
+    toast("Player rimosso (richiesta inviata).");
+  });
+
   // UI toggle “in-code” (no HTML changes): click feedCard title area to toggle collapsed
   d.feedCard?.addEventListener("dblclick", () => {
     ui.feedCollapsed = !ui.feedCollapsed;
@@ -428,15 +473,14 @@ function maybeAutoReset() {
   });
 
   // UI toggle auto-reset via Alt+R
-window.addEventListener("keydown", (e) => {
-  if (e.altKey && (e.key === "r" || e.key === "R")) {
-    ui.autoReset = !ui.autoReset;
-    saveUi(ui);
-    if (autoResetEl) autoResetEl.checked = ui.autoReset;
-    toast(ui.autoReset ? "Auto-reset ON" : "Auto-reset OFF");
-  }
-});
-
+  window.addEventListener("keydown", (e) => {
+    if (e.altKey && (e.key === "r" || e.key === "R")) {
+      ui.autoReset = !ui.autoReset;
+      saveUi(ui);
+      if (autoResetEl) autoResetEl.checked = ui.autoReset;
+      toast(ui.autoReset ? "Auto-reset ON" : "Auto-reset OFF");
+    }
+  });
 
   // initial conn UI hidden until needed
   setConnUI("hidden");
