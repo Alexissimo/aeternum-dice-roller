@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://aeternum-dice.netlify.app/sitemap.xml
+Sitemap: https://aeternum-dice-roller.pages.dev/sitemap.xml
