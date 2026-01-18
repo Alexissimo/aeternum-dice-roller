@@ -2,6 +2,7 @@ import { BACKEND_URL } from "./config.js";
 export async function connectSocket({ socketioScriptEl, setConnUI, onLatency } = {}) {
   const backend = String(BACKEND_URL || "").replace(/\/$/, "");
 
+  // 1) assicurati che il tag script esista
   const scriptEl =
     socketioScriptEl || document.getElementById("socketioScript");
 
