@@ -1,5 +1,5 @@
 [build]
-  publish = "frontend"
+  publish = "."
 
 # Redirect “comodi” (opzionali) così puoi usare /room invece di /room.html
 [[redirects]]
