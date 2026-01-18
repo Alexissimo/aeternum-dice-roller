@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Aeternum — Guida rapida</title>
+
+  <meta name="description" content="Guida rapida per usare Aeternum Dice Roller: lanci locali, room online, tiri segreti e installazione come app." />
+  <link rel="stylesheet" href="assets/styles.css" />
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#0b0f16" />
+</head>
+
+<body>
+  <header class="container">
+    <div class="topbar">
+      <div>
+        <h1>Guida rapida — Aeternum</h1>
+        <p class="sub">Hai scansionato il QR: ecco come usare il sito in 30 secondi.</p>
+      </div>
+      <nav class="nav">
+        <a class="btn" href="index.html">Home</a>
+        <a class="btn" href="room.html">Room</a>
+        <a class="btn" href="roll.html">Solo locale</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container grid">
+    <section class="card">
+      <h2>1) Vuoi giocare con altri? Usa “Room”</h2>
+      <ol class="muted" style="line-height:1.6">
+        <li>Apri <b>Room online</b>.</li>
+        <li>Inserisci un <b>nickname</b> (unico nella room).</li>
+        <li>Se sei il GM: <b>Crea room</b> e condividi il <b>Join code</b>.</li>
+        <li>Se sei player: incolla il <b>Join code</b> e premi <b>Entra</b>.</li>
+        <li>Clicca sui dadi (d4…d20) per impostare quanti tirare, poi <b>Lancia pubblico</b>.</li>
+      </ol>
+
+      <div class="row" style="margin-top:14px; gap:10px; flex-wrap:wrap;">
+        <a class="btn primary" href="room.html">Apri Room online</a>
+        <a class="btn" href="room.html#lobby">Ho un codice</a>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>2) Vuoi tirare solo per te? Usa “Solo locale”</h2>
+      <p class="muted" style="line-height:1.6">
+        In <b>Solo locale</b> i tiri non vengono condivisi: tutto resta sul tuo dispositivo (cronologia inclusa).
+      </p>
+      <div class="row" style="margin-top:14px">
+        <a class="btn primary" href="roll.html">Apri Solo locale</a>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>3) Funzioni utili (Room)</h2>
+      <ul class="muted" style="line-height:1.6">
+        <li><b>Auto-reset</b>: se attivo, azzera la selezione dopo il tiro.</li>
+        <li><b>GM-only</b>: il GM può fare tiri visibili solo a sé.</li>
+        <li><b>Tiro segreto</b>: il GM può richiedere un tiro segreto a un player (visibile solo a loro due).</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>4) Installala come app</h2>
+      <p class="muted" style="line-height:1.6">
+        <b>iPhone</b>: apri il sito con <b>Safari</b> → Condividi → <b>Aggiungi a Home</b>.<br/>
+        <b>PC</b>: da Chrome/Brave, nel menu del browser trovi <b>Installa app</b>.
+      </p>
+      <p class="muted" style="margin-top:10px">
+        Se l’icona non si aggiorna dopo modifiche, disinstalla e reinstalla l’app.
+      </p>
+    </section>
+  </main>
+
+  <footer class="container footer">
+    <span class="muted">Buona sessione ⚔️</span>
+  </footer>
+
+  <script>
+    // Se arrivi da ?src=qr, lascia un piccolo "tag" (facoltativo)
+    const url = new URL(location.href);
+    if (url.searchParams.get("src") === "qr") {
+      try { localStorage.setItem("last_entry", "qr"); } catch {}
+    }
+  </script>
+</body>
+</html>

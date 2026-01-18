@@ -1,4 +1,3 @@
-import { BACKEND_URL } from "./config.js";
 import { getDom } from "./dom.js";
 import { toast, copyText } from "./toast.js";
 import { loadNick, saveNick, loadUi, saveUi } from "./storage.js";
