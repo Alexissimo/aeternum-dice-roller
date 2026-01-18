@@ -1,65 +1,69 @@
 <!doctype html>
 <html lang="it">
-<head>
-  <link rel="icon" href="/favicon.ico">
-<link rel="apple-touch-icon" href="/icon-192.png">
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Aeternum — Status</title>
-  <link rel="stylesheet" href="assets/styles.css" />
-</head>
-<body>
-  <header class="container">
-    <div class="topbar">
-      <div>
-        <h1>Status — Aeternum</h1>
-        <p class="sub">Health check e latenza del backend.</p>
+  <head>
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0b0f16" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Aeternum — Status</title>
+    <link rel="stylesheet" href="assets/styles.css" />
+  </head>
+  <body>
+    <header class="container">
+      <div class="topbar">
+        <div>
+          <h1>Status — Aeternum</h1>
+          <p class="sub">Health check e latenza del backend.</p>
+        </div>
+        <nav class="nav">
+          <a class="btn" href="index.html">Home</a>
+          <a class="btn" href="room.html">Room</a>
+        </nav>
       </div>
-      <nav class="nav">
-        <a class="btn" href="index.html">Home</a>
-        <a class="btn" href="room.html">Room</a>
-      </nav>
-    </div>
-  </header>
+    </header>
 
-  <main class="container">
-    <section class="card">
-      <h2>Backend</h2>
-      <div class="muted">Endpoint: <span id="endpoint">—</span></div>
-      <div style="margin-top:10px" class="muted">Stato: <span id="ok">—</span></div>
-      <div class="muted">Latenza: <span id="lat">—</span></div>
-      <div class="row" style="margin-top:12px">
-        <button class="btn" id="retry">Riprova</button>
-      </div>
-    </section>
-  </main>
+    <main class="container">
+      <section class="card">
+        <h2>Backend</h2>
+        <div class="muted">Endpoint: <span id="endpoint">—</span></div>
+        <div style="margin-top: 10px" class="muted">
+          Stato: <span id="ok">—</span>
+        </div>
+        <div class="muted">Latenza: <span id="lat">—</span></div>
+        <div class="row" style="margin-top: 12px">
+          <button class="btn" id="retry">Riprova</button>
+        </div>
+      </section>
+    </main>
 
-  <script>
-const BACKEND =
-  location.hostname === "localhost" || location.hostname === "127.0.0.1"
-    ? "http://localhost:3000"
-    : "https://aeternum-dice-roller.onrender.com";
+    <script>
+      const BACKEND =
+        location.hostname === "localhost" || location.hostname === "127.0.0.1"
+          ? "http://localhost:3000"
+          : "https://aeternum-dice-roller.onrender.com";
 
-    const $ = (id) => document.getElementById(id);
-    $("endpoint").textContent = BACKEND;
+      const $ = (id) => document.getElementById(id);
+      $("endpoint").textContent = BACKEND;
 
-    async function ping() {
-      $("ok").textContent = "…";
-      $("lat").textContent = "…";
-      const t0 = performance.now();
-      try {
-        const r = await fetch(BACKEND + "/health", { cache: "no-store" });
-        const t1 = performance.now();
-        const js = await r.json().catch(() => ({}));
-        $("ok").textContent = r.ok && js.ok ? "🟢 OK" : "🔴 KO";
-        $("lat").textContent = Math.round(t1 - t0) + " ms";
-      } catch (e) {
-        $("ok").textContent = "🔴 KO";
-        $("lat").textContent = "—";
+      async function ping() {
+        $("ok").textContent = "…";
+        $("lat").textContent = "…";
+        const t0 = performance.now();
+        try {
+          const r = await fetch(BACKEND + "/health", { cache: "no-store" });
+          const t1 = performance.now();
+          const js = await r.json().catch(() => ({}));
+          $("ok").textContent = r.ok && js.ok ? "🟢 OK" : "🔴 KO";
+          $("lat").textContent = Math.round(t1 - t0) + " ms";
+        } catch (e) {
+          $("ok").textContent = "🔴 KO";
+          $("lat").textContent = "—";
+        }
       }
-    }
-    $("retry").addEventListener("click", ping);
-    ping();
-  </script>
-</body>
+      $("retry").addEventListener("click", ping);
+      ping();
+    </script>
+  </body>
 </html>
