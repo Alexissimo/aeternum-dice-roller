@@ -1,6 +1,9 @@
 import { HISTORY_LIMIT, GRACE_MS, ROLL_COOLDOWN_MS } from "./config.js";
 
-export const rooms = new Map();
+export const rooms = new Map(); // roomCode -> room
+
+// mapping per sapere in quale room sta un socket (una sola room per socket)
+export const socketToRoom = new Map(); // socketId -> roomCode
 
 export function roomToPlayersList(room) {
   return Array.from(room.players.values()).map((p) => ({
@@ -36,6 +39,7 @@ export function closeRoom(io, roomCode, reason) {
   io.to(roomCode).emit("room_closed", { reason: reason || "Room chiusa" });
 
   for (const sid of room.players.keys()) {
+    socketToRoom.delete(sid);
     const s = io.sockets.sockets.get(sid);
     if (s) s.leave(roomCode);
   }
@@ -46,6 +50,7 @@ export function closeRoom(io, roomCode, reason) {
 export function scheduleClose(io, roomCode) {
   const room = rooms.get(roomCode);
   if (!room) return;
+
   if (room.closeTimer) clearTimeout(room.closeTimer);
 
   room.closeTimer = setTimeout(() => {
@@ -61,9 +66,11 @@ export function scheduleClose(io, roomCode) {
 export function cancelClose(io, roomCode) {
   const room = rooms.get(roomCode);
   if (!room) return;
+
   if (room.closeTimer) clearTimeout(room.closeTimer);
   room.closeTimer = null;
   room.ownerDisconnectedAt = null;
+
   io.to(roomCode).emit("gm_status", { status: "online" });
 }
 

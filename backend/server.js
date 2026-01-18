@@ -5,6 +5,7 @@ import { Server } from "socket.io";
 import { registerHandlers } from "./room/handlers.js";
 
 const PORT = process.env.PORT || 3000;
+
 const ALLOWED_ORIGINS = (
   process.env.ALLOWED_ORIGINS || "http://127.0.0.1:5500,http://localhost:5500"
 )
