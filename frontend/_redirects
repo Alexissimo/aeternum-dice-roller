@@ -1,5 +1,14 @@
-/room    /room.html    200
-/roll    /roll.html    200
-/about   /about.html   200
-/status  /status.html  200
-/qr      /qr.html      200
+/room     /room.html    200
+/room/    /room.html    200
+
+/roll     /roll.html    200
+/roll/    /roll.html    200
+
+/about    /about.html   200
+/about/   /about.html   200
+
+/status   /status.html  200
+/status/  /status.html  200
+
+/qr       /qr.html      200
+/qr/      /qr.html      200
