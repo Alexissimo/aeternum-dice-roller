@@ -1,8 +1,8 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="it">
   <head>
     <link rel="manifest" href="/manifest.json?v=4" />
-<meta name="theme-color" content="#0b0f16" />
+    <meta name="theme-color" content="#0b0f16" />
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Aeternum — Guida</title>
@@ -52,10 +52,11 @@
       >
     </footer>
     <script>
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register(new URL("sw.js", window.location.href))
-  }
-</script>
-
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register(
+          new URL("sw.js", window.location.href),
+        );
+      }
+    </script>
   </body>
 </html>
