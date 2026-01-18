@@ -1,10 +1,7 @@
-import { BACKEND_URL } from "./config.js"; // <-- se il tuo config è in assets/config.js
-// se invece è in assets/room/config.js allora cambia in:  import { BACKEND_URL } from "./config.js";
-
+import { BACKEND_URL } from "./config.js"; 
 export async function connectSocket({ socketioScriptEl, setConnUI, onLatency } = {}) {
   const backend = String(BACKEND_URL || "").replace(/\/$/, "");
 
-  // 1) assicurati che il tag script esista
   const scriptEl =
     socketioScriptEl || document.getElementById("socketioScript");
 
