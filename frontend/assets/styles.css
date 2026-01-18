@@ -398,16 +398,20 @@ header.container {
 }
 
 .auto-reset-row {
-  margin-top: 14px;
+  display: flex;
   align-items: center;
+  flex-wrap: nowrap; /* NON andare a capo */
+  gap: 10px;
+  margin-top: 14px;
 }
 
 .auto-reset-label {
   display: flex;
   align-items: center;
   gap: 10px;
-  user-select: none;
   cursor: pointer;
+  user-select: none;
+  white-space: nowrap; /* forza una riga */
 }
 
 .auto-reset-label input {

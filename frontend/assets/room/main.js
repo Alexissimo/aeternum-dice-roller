@@ -477,36 +477,43 @@ console.log("[room/main.js] loaded");
     d.toggleMasterBtn.textContent = isHidden ? "Nascondi" : "Mostra";
   });
 
-  d.kickBtn?.addEventListener("click", () => {
-    if (!socket || !session.roomCode)
-      return toast("Non sei in una room.", 1800);
-    if (!session.me?.isGM) return;
+d.kickBtn?.addEventListener("click", () => {
+  if (!socket || !session.roomCode) return toast("Non sei in una room.", 1800);
+  if (!session.me?.isGM) return;
 
-    const targetSocketId = d.kickPlayer?.value;
-    if (!targetSocketId) return toast("Nessun player da rimuovere.", 1800);
+  const targetSocketId = d.kickPlayer?.value;
+  if (!targetSocketId) return toast("Nessun player da rimuovere.", 1800);
 
-    socket.emit("room_kick_player", {
-      roomCode: session.roomCode,
-      masterCode: session.masterCode,
-      targetSocketId,
-    });
+  socket.emit(
+    "room_kick_player",
+    { roomCode: session.roomCode, masterCode: session.masterCode, targetSocketId },
+    (resp) => {
+      if (!resp?.ok) return toast(resp?.message || "Kick fallito", 2200);
+      toast("Player rimosso ✅", 1800);
+    }
+  );
+});
 
-    toast("Player rimosso");
-  });
+d.lockRoomBtn?.addEventListener("click", () => {
+  if (!socket || !session.roomCode) return toast("Non sei in una room.", 1800);
+  if (!session.me?.isGM) return;
 
-  d.lockRoomBtn?.addEventListener("click", () => {
-    if (!socket || !session.roomCode)
-      return toast("Non sei in una room.", 1800);
-    if (!session.me?.isGM) return;
+  const next = !session.roomLocked;
 
-    socket.emit("room_lock_set", {
-      roomCode: session.roomCode,
-      masterCode: session.masterCode,
-      locked: !session.roomLocked,
-    });
+  socket.emit(
+    "room_lock_set",
+    { roomCode: session.roomCode, masterCode: session.masterCode, locked: next },
+    (resp) => {
+      if (!resp?.ok) return toast(resp?.message || "Lock fallito", 2200);
 
-    toast(!session.roomLocked ? "Ingressi bloccati" : "Ingressi sbloccati");
-  });
+      session.roomLocked = !!resp.locked;
+      if (d.lockStatus) d.lockStatus.textContent = session.roomLocked ? "Bloccata" : "Aperta";
+      if (d.lockRoomBtn) d.lockRoomBtn.textContent = session.roomLocked ? "Sblocca ingressi" : "Blocca ingressi";
+      toast(session.roomLocked ? "Ingressi bloccati 🔒" : "Ingressi aperti 🔓");
+    }
+  );
+});
+
 
   // UI toggle “in-code” (no HTML changes): click feedCard title area to toggle collapsed
   d.feedCard?.addEventListener("dblclick", () => {

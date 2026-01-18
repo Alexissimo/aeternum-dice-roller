@@ -2,7 +2,8 @@ import express from "express";
 import http from "http";
 import cors from "cors";
 import { Server } from "socket.io";
-import { registerHandlers } from "./room/handlers.js";
+
+import { registerHandlers } from "./room/handlers.js"; // <-- se non hai /room, cambia in "./handlers.js"
 
 const PORT = process.env.PORT || 3000;
 

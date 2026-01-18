@@ -1,53 +1,72 @@
-import { BACKEND_URL } from "./config.js";
+import { BACKEND_URL } from "./config.js"; // <-- se il tuo config è in assets/config.js
+// se invece è in assets/room/config.js allora cambia in:  import { BACKEND_URL } from "./config.js";
 
-export function loadSocketIoScript(socketioScriptEl) {
-  return new Promise((resolve, reject) => {
-    if (window.io) return resolve();
-    if (!socketioScriptEl) return reject(new Error("Tag <script id='socketioScript'> mancante in room.html"));
+export async function connectSocket({ socketioScriptEl, setConnUI, onLatency } = {}) {
+  const backend = String(BACKEND_URL || "").replace(/\/$/, "");
 
-    socketioScriptEl.src = `${BACKEND_URL.replace(/\/$/, "")}/socket.io/socket.io.js`;
-    socketioScriptEl.onload = () => resolve();
-    socketioScriptEl.onerror = () => reject(new Error("Impossibile caricare socket.io.js dal backend"));
+  // 1) assicurati che il tag script esista
+  const scriptEl =
+    socketioScriptEl || document.getElementById("socketioScript");
+
+  if (!scriptEl) {
+    throw new Error("Tag <script id='socketioScript'> mancante in room.html");
+  }
+
+  // 2) carica socket.io.js dal backend (solo se non già presente)
+  if (!window.io) {
+    setConnUI?.("connecting", `Carico Socket.IO client da ${backend}…`);
+
+    await new Promise((resolve, reject) => {
+      scriptEl.src = `${backend}/socket.io/socket.io.js`;
+      scriptEl.async = true;
+
+      scriptEl.onload = () => resolve();
+      scriptEl.onerror = () =>
+        reject(new Error("Impossibile caricare socket.io.js dal backend"));
+    });
+  }
+
+  if (!window.io) {
+    throw new Error("Socket.IO client non disponibile (window.io mancante).");
+  }
+
+  // 3) connettiti
+  setConnUI?.("connecting", `Connessione a ${backend}…`);
+
+  const socket = window.io(backend, {
+    transports: ["websocket"], // websocket first
   });
-}
 
-export function connectSocket({ socketioScriptEl, setConnUI, onLatency }) {
-  return (async () => {
-    setConnUI("connecting");
-    await loadSocketIoScript(socketioScriptEl);
+  socket.on("connect", () => {
+    setConnUI?.("online", "Connesso al server.");
+  });
 
-    const socket = io(BACKEND_URL, { transports: ["websocket"] });
+  socket.on("connect_error", (err) => {
+    setConnUI?.("offline", err?.message || "Connessione fallita.");
+  });
 
-    let softTimer = setTimeout(() => {
-      setConnUI("connecting", "Sto ancora tentando… (il server potrebbe stare “svegliandosi”).");
-    }, 2500);
+  socket.on("disconnect", () => {
+    setConnUI?.("offline", "Disconnesso dal server.");
+  });
 
-    socket.on("connect", () => {
-      clearTimeout(softTimer);
-      setConnUI("online");
-    });
+  // 4) ping latenza (se il server ha ping_check/pong_check)
+  let pingTimer = null;
 
-    socket.on("disconnect", (reason) => {
-      setConnUI("offline", `Connessione persa (${reason}).`);
-    });
-
-    socket.on("connect_error", (err) => {
-      clearTimeout(softTimer);
-      setConnUI("offline", err?.message ? `Errore: ${err.message}` : "Errore di connessione.");
-    });
-
-    // latency ping loop
-    setInterval(() => {
-      if (!socket.connected) return;
+  function startPing() {
+    if (pingTimer) clearInterval(pingTimer);
+    pingTimer = setInterval(() => {
       const t0 = Date.now();
       socket.emit("ping_check", { t0 });
-    }, 7000);
+    }, 4000);
+  }
 
-    socket.on("pong_check", ({ t0 }) => {
-      if (!t0) return;
-      onLatency?.(Date.now() - t0);
-    });
+  socket.on("pong_check", ({ t0 }) => {
+    if (!t0) return;
+    const ms = Date.now() - Number(t0);
+    onLatency?.(ms);
+  });
 
-    return socket;
-  })();
+  socket.on("connect", startPing);
+
+  return socket;
 }

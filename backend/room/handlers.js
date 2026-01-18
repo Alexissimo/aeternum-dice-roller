@@ -10,7 +10,6 @@ import { clampSelection, selectionToLabel, rollFromSelection } from "./dice.js";
 
 import {
   rooms,
-  socketToRoom,
   roomToPlayersList,
   pushHistory,
   historyForViewer,
@@ -19,62 +18,39 @@ import {
   canRoll,
 } from "./store.js";
 
-function emitError(socket, message) {
+function err(socket, message) {
   socket.emit("error_message", { message: message || "Errore" });
 }
 
-function getRoomOrError(socket, roomCode) {
+function requireRoom(socket, roomCode) {
   const room = rooms.get(roomCode);
   if (!room) {
-    emitError(socket, "Room non trovata.");
+    socket.emit("join_denied", { message: "Room non trovata." });
     return null;
   }
   return room;
 }
 
-function requireGmOrError(socket, room, masterCode) {
+function requireGM(socket, room, masterCode) {
   if (room.masterCode !== masterCode) {
-    emitError(socket, "Master code errato.");
-    return null;
+    err(socket, "Master code errato.");
+    return false;
   }
   const me = room.players.get(socket.id);
   if (!me || !me.isGM) {
-    emitError(socket, "Permessi insufficienti (solo GM).");
-    return null;
+    err(socket, "Permessi insufficienti (solo GM).");
+    return false;
   }
-  return me;
-}
-
-function joinRoomSocket(socket, roomCode) {
-  // una room per socket: se già in un’altra, esci
-  const prev = socketToRoom.get(socket.id);
-  if (prev && prev !== roomCode) socket.leave(prev);
-
-  socket.join(roomCode);
-  socketToRoom.set(socket.id, roomCode);
-}
-
-function removePlayerFromRoom(io, roomCode, room, socketId) {
-  const p = room.players.get(socketId);
-  if (!p) return false;
-
-  room.players.delete(socketId);
-  room.nicknames.delete(p.nickname);
-  socketToRoom.delete(socketId);
-
-  const s = io.sockets.sockets.get(socketId);
-  if (s) s.leave(roomCode);
-
   return true;
 }
 
 export function registerHandlers(io, socket) {
   socket.on("ping_check", ({ t0 }) => socket.emit("pong_check", { t0 }));
 
-  // --- CREATE ---
+  // ---------------- CREATE ----------------
   socket.on("room_create", ({ nickname }) => {
     nickname = normalizeNickname(nickname);
-    if (!nickname) return emitError(socket, "Nickname obbligatorio.");
+    if (!nickname) return err(socket, "Nickname obbligatorio.");
 
     const { roomCode, masterCode } = newRoomCodes();
 
@@ -104,7 +80,7 @@ export function registerHandlers(io, socket) {
     room.nicknames.add(nickname);
     rooms.set(roomCode, room);
 
-    joinRoomSocket(socket, roomCode);
+    socket.join(roomCode);
 
     socket.emit("room_created", {
       roomCode,
@@ -116,21 +92,30 @@ export function registerHandlers(io, socket) {
     });
 
     io.to(roomCode).emit("players_update", { players: roomToPlayersList(room) });
-    io.to(roomCode).emit("room_state", { locked: room.locked });
+    io.to(roomCode).emit("room_state", { locked: room.locked }); // <-- importante per UI
     io.to(roomCode).emit("gm_status", { status: "online" });
   });
 
-  // --- JOIN (PLAYER) ---
+  // ---------------- JOIN PLAYER ----------------
   socket.on("room_join", ({ roomCode, nickname }) => {
     roomCode = normalizeRoomCode(roomCode);
     nickname = normalizeNickname(nickname);
 
-    const room = getRoomOrError(socket, roomCode);
+    const room = requireRoom(socket, roomCode);
     if (!room) return;
 
-    if (!nickname) return socket.emit("join_denied", { message: "Nickname obbligatorio." });
-    if (room.locked) return socket.emit("join_denied", { message: "Room bloccata (ingressi chiusi)." });
-    if (room.nicknames.has(nickname)) return socket.emit("join_denied", { message: "Nickname già in uso nella room." });
+    if (!nickname)
+      return socket.emit("join_denied", { message: "Nickname obbligatorio." });
+
+    if (room.locked)
+      return socket.emit("join_denied", {
+        message: "Room bloccata (ingressi chiusi).",
+      });
+
+    if (room.nicknames.has(nickname))
+      return socket.emit("join_denied", {
+        message: "Nickname già in uso nella room.",
+      });
 
     room.players.set(socket.id, {
       socketId: socket.id,
@@ -140,7 +125,7 @@ export function registerHandlers(io, socket) {
     });
     room.nicknames.add(nickname);
 
-    joinRoomSocket(socket, roomCode);
+    socket.join(roomCode);
 
     socket.emit("room_joined", {
       roomCode,
@@ -151,24 +136,28 @@ export function registerHandlers(io, socket) {
     });
 
     io.to(roomCode).emit("players_update", { players: roomToPlayersList(room) });
-    io.to(roomCode).emit("room_state", { locked: room.locked });
+    io.to(roomCode).emit("room_state", { locked: room.locked }); // <-- importante
   });
 
-  // --- REJOIN GM ---
+  // ---------------- REJOIN GM ----------------
   socket.on("room_rejoin_master", ({ roomCode, masterCode, nickname }) => {
     roomCode = normalizeRoomCode(roomCode);
     masterCode = normalizeMasterCode(masterCode);
     nickname = normalizeNickname(nickname);
 
-    const room = getRoomOrError(socket, roomCode);
+    const room = requireRoom(socket, roomCode);
     if (!room) return;
 
-    if (room.masterCode !== masterCode) return socket.emit("join_denied", { message: "Master code errato." });
-    if (!nickname) return socket.emit("join_denied", { message: "Nickname obbligatorio." });
+    if (room.masterCode !== masterCode)
+      return socket.emit("join_denied", { message: "Master code errato." });
 
-    if (room.nicknames.has(nickname) && nickname !== room.ownerNickname) {
-      return socket.emit("join_denied", { message: "Nickname già in uso nella room." });
-    }
+    if (!nickname)
+      return socket.emit("join_denied", { message: "Nickname obbligatorio." });
+
+    if (room.nicknames.has(nickname) && nickname !== room.ownerNickname)
+      return socket.emit("join_denied", {
+        message: "Nickname già in uso nella room.",
+      });
 
     room.ownerSocketId = socket.id;
     room.ownerNickname = nickname;
@@ -181,7 +170,7 @@ export function registerHandlers(io, socket) {
     });
     room.nicknames.add(nickname);
 
-    joinRoomSocket(socket, roomCode);
+    socket.join(roomCode);
 
     cancelClose(io, roomCode);
 
@@ -195,59 +184,89 @@ export function registerHandlers(io, socket) {
     });
 
     io.to(roomCode).emit("players_update", { players: roomToPlayersList(room) });
-    io.to(roomCode).emit("room_state", { locked: room.locked });
+    io.to(roomCode).emit("room_state", { locked: room.locked }); // <-- importante
     io.to(roomCode).emit("gm_status", { status: "online" });
   });
 
-  // --- LOCK / UNLOCK ROOM ---
-  socket.on("room_lock_set", ({ roomCode, masterCode, locked }) => {
-    roomCode = normalizeRoomCode(roomCode);
-    masterCode = normalizeMasterCode(masterCode);
+  // ---------------- LOCK/UNLOCK ----------------
+socket.on("room_lock_set", ({ roomCode, masterCode, locked }, ack) => {
+  roomCode = normalizeRoomCode(roomCode);
+  masterCode = normalizeMasterCode(masterCode);
 
-    const room = getRoomOrError(socket, roomCode);
-    if (!room) return;
+  console.log("[room_lock_set]", { roomCode, locked, by: socket.id });
 
-    const gm = requireGmOrError(socket, room, masterCode);
-    if (!gm) return;
+  const room = rooms.get(roomCode);
+  if (!room) {
+    const msg = "Room non trovata.";
+    if (ack) return ack({ ok: false, message: msg });
+    return err(socket, msg);
+  }
 
-    room.locked = !!locked;
+  if (!requireGM(socket, room, masterCode)) {
+    const msg = "Permessi insufficienti o masterCode errato.";
+    if (ack) return ack({ ok: false, message: msg });
+    return; // err già emesso da requireGM
+  }
 
-    io.to(roomCode).emit("room_state", { locked: room.locked });
-  });
+  room.locked = !!locked;
 
-  // --- KICK PLAYER ---
-  socket.on("room_kick_player", ({ roomCode, masterCode, targetSocketId }) => {
-    roomCode = normalizeRoomCode(roomCode);
-    masterCode = normalizeMasterCode(masterCode);
-    targetSocketId = String(targetSocketId || "");
+  io.to(roomCode).emit("room_state", { locked: room.locked });
+  if (ack) ack({ ok: true, locked: room.locked });
+});
 
-    const room = getRoomOrError(socket, roomCode);
-    if (!room) return;
 
-    const gm = requireGmOrError(socket, room, masterCode);
-    if (!gm) return;
+  // ---------------- KICK PLAYER ----------------
+socket.on("room_kick_player", ({ roomCode, masterCode, targetSocketId }, ack) => {
+  roomCode = normalizeRoomCode(roomCode);
+  masterCode = normalizeMasterCode(masterCode);
+  targetSocketId = String(targetSocketId || "");
 
-    const target = room.players.get(targetSocketId);
-    if (!target) return emitError(socket, "Target non valido (player non trovato).");
-    if (target.isGM) return emitError(socket, "Non puoi espellere il GM.");
+  console.log("[room_kick_player]", { roomCode, targetSocketId, by: socket.id });
 
-    // rimuovi dal modello
-    const removed = removePlayerFromRoom(io, roomCode, room, targetSocketId);
-    if (!removed) return emitError(socket, "Impossibile rimuovere il player.");
+  const room = rooms.get(roomCode);
+  if (!room) {
+    const msg = "Room non trovata.";
+    if (ack) return ack({ ok: false, message: msg });
+    return err(socket, msg);
+  }
 
-    // notifica e forziamo uscita reale (evita casi “resta in UI”)
-    io.to(targetSocketId).emit("room_closed", { reason: "Sei stato espulso dal GM." });
+  if (!requireGM(socket, room, masterCode)) {
+    const msg = "Permessi insufficienti o masterCode errato.";
+    if (ack) return ack({ ok: false, message: msg });
+    return;
+  }
 
-    const s = io.sockets.sockets.get(targetSocketId);
-    if (s) {
-      // chiude la connessione: il client non resta appeso e non continua a vedere la room
-      s.disconnect(true);
-    }
+  const target = room.players.get(targetSocketId);
+  if (!target) {
+    const msg = "Target non valido (player non trovato).";
+    if (ack) return ack({ ok: false, message: msg });
+    return err(socket, msg);
+  }
+  if (target.isGM) {
+    const msg = "Non puoi espellere il GM.";
+    if (ack) return ack({ ok: false, message: msg });
+    return err(socket, msg);
+  }
 
-    io.to(roomCode).emit("players_update", { players: roomToPlayersList(room) });
-  });
+  // rimuovi stato
+  room.players.delete(targetSocketId);
+  room.nicknames.delete(target.nickname);
 
-  // --- ROLL PUBLIC ---
+  // forza uscita client target
+  const s = io.sockets.sockets.get(targetSocketId);
+  if (s) {
+    s.leave(roomCode);
+    s.emit("room_closed", { reason: "Sei stato espulso dal GM." });
+    s.disconnect(true);
+  }
+
+  io.to(roomCode).emit("players_update", { players: roomToPlayersList(room) });
+
+  if (ack) ack({ ok: true });
+});
+
+
+  // ---------------- ROLL PUBLIC ----------------
   socket.on("roll_public", ({ roomCode, selection }) => {
     roomCode = normalizeRoomCode(roomCode);
     const room = rooms.get(roomCode);
@@ -256,7 +275,8 @@ export function registerHandlers(io, socket) {
     const player = room.players.get(socket.id);
     if (!player) return;
 
-    if (!canRoll(player)) return emitError(socket, "Troppi tiri ravvicinati: rallenta un attimo.");
+    if (!canRoll(player))
+      return err(socket, "Troppi tiri ravvicinati: rallenta un attimo.");
 
     const sel = clampSelection(selection);
     if (!Object.keys(sel).length) return;
@@ -277,7 +297,7 @@ export function registerHandlers(io, socket) {
     io.to(roomCode).emit("roll_feed", entry);
   });
 
-  // --- ROLL GM-ONLY ---
+  // ---------------- ROLL GM-ONLY ----------------
   socket.on("roll_gm", ({ roomCode, masterCode, selection }) => {
     roomCode = normalizeRoomCode(roomCode);
     masterCode = normalizeMasterCode(masterCode);
@@ -289,7 +309,8 @@ export function registerHandlers(io, socket) {
     const player = room.players.get(socket.id);
     if (!player || !player.isGM) return;
 
-    if (!canRoll(player)) return emitError(socket, "Troppi tiri ravvicinati: rallenta un attimo.");
+    if (!canRoll(player))
+      return err(socket, "Troppi tiri ravvicinati: rallenta un attimo.");
 
     const sel = clampSelection(selection);
     if (!Object.keys(sel).length) return;
@@ -310,7 +331,7 @@ export function registerHandlers(io, socket) {
     socket.emit("gm_roll_feed", entry);
   });
 
-  // --- SECRET REQUEST ---
+  // ---------------- SECRET REQUEST ----------------
   socket.on("secret_roll_request", ({ roomCode, masterCode, targetSocketId, note }) => {
     roomCode = normalizeRoomCode(roomCode);
     masterCode = normalizeMasterCode(masterCode);
@@ -324,18 +345,18 @@ export function registerHandlers(io, socket) {
     if (!gm || !gm.isGM) return;
 
     const target = room.players.get(targetSocketId);
-    if (!target || target.isGM) return emitError(socket, "Target non valido.");
+    if (!target || target.isGM) return err(socket, "Target non valido.");
 
     const requestId = randCode(10);
     room.secretRequests.set(requestId, {
       requestId,
       fromGM: gm.nickname,
-      targetSocketId: target.socketId,
+      targetSocketId,
       note: String(note || "").slice(0, 120),
       createdAt: Date.now(),
     });
 
-    io.to(target.socketId).emit("secret_roll_request", {
+    io.to(targetSocketId).emit("secret_roll_request", {
       requestId,
       roomCode,
       fromGM: gm.nickname,
@@ -343,7 +364,7 @@ export function registerHandlers(io, socket) {
     });
   });
 
-  // --- SECRET RESULT ---
+  // ---------------- SECRET RESULT ----------------
   socket.on("secret_roll_result", ({ roomCode, requestId, selection }) => {
     roomCode = normalizeRoomCode(roomCode);
     requestId = normalizeMasterCode(requestId);
@@ -358,7 +379,8 @@ export function registerHandlers(io, socket) {
     const player = room.players.get(socket.id);
     if (!player) return;
 
-    if (!canRoll(player)) return emitError(socket, "Troppi tiri ravvicinati: rallenta un attimo.");
+    if (!canRoll(player))
+      return err(socket, "Troppi tiri ravvicinati: rallenta un attimo.");
 
     const sel = clampSelection(selection);
     if (!Object.keys(sel).length) return;
@@ -385,45 +407,22 @@ export function registerHandlers(io, socket) {
     room.secretRequests.delete(requestId);
   });
 
-  // --- DISCONNECT ---
+  // ---------------- DISCONNECT ----------------
   socket.on("disconnect", () => {
-    const roomCode = socketToRoom.get(socket.id);
+    for (const [rc, room] of rooms) {
+      const p = room.players.get(socket.id);
+      if (!p) continue;
 
-    // se non sappiamo la room, fallback al vecchio scan
-    if (!roomCode) {
-      for (const [rc, room] of rooms) {
-        const p = room.players.get(socket.id);
-        if (!p) continue;
+      room.players.delete(socket.id);
+      room.nicknames.delete(p.nickname);
 
-        room.players.delete(socket.id);
-        room.nicknames.delete(p.nickname);
-        socketToRoom.delete(socket.id);
+      io.to(rc).emit("players_update", { players: roomToPlayersList(room) });
 
-        io.to(rc).emit("players_update", { players: roomToPlayersList(room) });
-
-        if (socket.id === room.ownerSocketId) {
-          room.ownerDisconnectedAt = Date.now();
-          scheduleClose(io, rc);
-        }
+      if (socket.id === room.ownerSocketId) {
+        room.ownerDisconnectedAt = Date.now();
+        scheduleClose(io, rc);
       }
       return;
-    }
-
-    const room = rooms.get(roomCode);
-    socketToRoom.delete(socket.id);
-    if (!room) return;
-
-    const p = room.players.get(socket.id);
-    if (!p) return;
-
-    room.players.delete(socket.id);
-    room.nicknames.delete(p.nickname);
-
-    io.to(roomCode).emit("players_update", { players: roomToPlayersList(room) });
-
-    if (socket.id === room.ownerSocketId) {
-      room.ownerDisconnectedAt = Date.now();
-      scheduleClose(io, roomCode);
     }
   });
 }
