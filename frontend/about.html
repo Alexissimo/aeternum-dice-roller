@@ -13,7 +13,10 @@
       <div class="topbar">
         <div>
           <h1>Guida rapida</h1>
-          <p class="sub">Come usare il roller e cosa significano le icone.</p>
+          <p class="sub">
+            Come usare il roller in 30 secondi, cosa significano le icone e come
+            giocare in room.
+          </p>
         </div>
         <nav class="nav">
           <a class="btn" href="index.html">Home</a>
@@ -24,6 +27,38 @@
     </header>
 
     <main class="container">
+      <!-- START: intro QR-friendly -->
+      <section class="card">
+        <h2>Parti subito</h2>
+        <ul class="list">
+          <li><b>Nessun login</b>: serve solo un nickname (in room).</li>
+          <li><b>Preset ufficiali</b>: d4→d20 step 2, nessun dado custom.</li>
+          <li><b>Max 15 dadi per tipo</b> in un singolo tiro.</li>
+          <li><b>Funziona dal browser</b> (telefono o PC).</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Online o solo per te?</h2>
+        <ul class="list">
+          <li>
+            <b>Room online</b>: usala quando giochi con altri. Il GM crea una
+            room e condivide il <b>Join code</b>. I tiri pubblici si vedono in
+            realtime.
+          </li>
+          <li>
+            <b>Solo locale</b>: usala per provare i dadi o giocare da solo.
+            Tutto resta sul tuo dispositivo (cronologia inclusa).
+          </li>
+        </ul>
+
+        <div class="row" style="margin-top: 12px; gap: 10px; flex-wrap: wrap">
+          <a class="btn primary" href="room.html">Apri Room online</a>
+          <a class="btn" href="roll.html">Apri Solo locale</a>
+        </div>
+      </section>
+      <!-- END: intro QR-friendly -->
+
       <section class="card">
         <h2>Icone</h2>
         <ul class="list">
@@ -36,26 +71,76 @@
       </section>
 
       <section class="card">
+        <h2>Come si tira</h2>
+        <ul class="list">
+          <li>
+            <b>Seleziona i dadi</b>: clic sui pulsanti d4…d20 per aumentare la
+            quantità.
+          </li>
+          <li>
+            <b>Lancia</b>: premi “Lancia pubblico” (in room) oppure “Lancia
+            selezione” (solo locale).
+          </li>
+          <li>
+            <b>Auto-reset</b>: se attivo, azzera la selezione dopo il tiro.
+          </li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Funzioni del GM (Room)</h2>
+        <ul class="list">
+          <li><b>GM-only</b>: il GM può tirare senza far vedere agli altri.</li>
+          <li>
+            <b>Tiro segreto</b>: il GM può richiedere un tiro segreto a un solo
+            player (visibile solo a loro due).
+          </li>
+          <li>
+            <b>Room viva</b>: la room resta attiva finché il GM è online (o
+            rientra entro la finestra di grace).
+          </li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Installala come app</h2>
+        <ul class="list">
+          <li>
+            <b>iPhone</b>: apri il sito in <b>Safari</b> → Condividi →
+            <b>Aggiungi a Home</b>.
+          </li>
+          <li>
+            <b>Android / PC</b>: dal menu del browser → <b>Installa app</b>.
+          </li>
+          <li>
+            Se l’icona non si aggiorna dopo modifiche: disinstalla e reinstalla
+            l’app.
+          </li>
+        </ul>
+      </section>
+
+      <section class="card">
         <h2>Note</h2>
         <ul class="list">
           <li>
             Il roller usa solo i <b>preset</b> ufficiali, niente dadi custom.
           </li>
-          <li>La cronologia è locale (rimane sul tuo PC/telefono).</li>
+          <li>In <b>Solo locale</b> la cronologia è locale.</li>
+          <li>
+            In <b>Room online</b> i risultati vengono condivisi in realtime
+            nella room.
+          </li>
         </ul>
       </section>
     </main>
 
     <footer class="container footer">
-      <span class="muted"
-        >Aeternum Dice Roller — offline, gratuito, senza login.</span
-      >
+      <span class="muted">Aeternum Dice Roller — gratuito, senza login.</span>
     </footer>
+
     <script>
       if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register(
-          new URL("sw.js", window.location.href),
-        );
+        navigator.serviceWorker.register("/sw.js?v=4").catch(() => {});
       }
     </script>
   </body>
