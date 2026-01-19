@@ -417,3 +417,23 @@ header.container {
 .auto-reset-label input {
   transform: translateY(1px);
 }
+
+/* === QR / Guida rapida: uniforma bottoni === */
+.qr-page .btn,
+.qr-page .btn.primary {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.qr-page .btn.primary {
+  background: linear-gradient(135deg, #3b5cff, #6f7cff);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.qr-page .btn:hover {
+  filter: brightness(1.08);
+}
+
+.qr-page .btn:not(.primary) {
+  border-color: rgba(255,255,255,0.25);
+}
