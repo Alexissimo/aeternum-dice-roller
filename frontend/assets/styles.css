@@ -437,3 +437,10 @@ header.container {
 .qr-page .btn:not(.primary) {
   border-color: rgba(255,255,255,0.25);
 }
+
+/* CTA in pagine guida/qr: testo bianco e più leggibile, come la nav */
+.card .row .btn {
+  color: #fff;
+  font-weight: 700;
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.25);
+}
