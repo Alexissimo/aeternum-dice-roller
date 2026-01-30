@@ -1,227 +1,224 @@
-# Aeternum Dice Roller
+Aeternum Dice Roller
 
-Aeternum Dice Roller è una web app per il lancio di dadi **custom** progettata
-per il sistema di gioco **Aeternum**.
+Aeternum Dice Roller è una web app per lanciare i dadi preset del sistema Aeternum.
 
 Supporta:
-- 🎲 lancio dadi **locale** (offline, senza room)
-- 🌐 **room multiplayer** in tempo reale (Socket.IO)
-- 👑 gestione GM con tiri pubblici, segreti e GM-only
-- 📱 PWA installabile (desktop / mobile)
 
-Il progetto è diviso in **frontend statico** e **backend realtime**.
+🎲 Solo locale: tiri offline (cronologia nel browser)
 
----
+🌐 Room multiplayer in tempo reale (Socket.IO)
 
-## ✨ Funzionalità principali
+👑 Strumenti GM: tiri pubblici, GM-only, richieste di tiri segreti a un singolo player
 
-### Lancio dadi
-- Preset ufficiali Aeternum: **d4 → d20 (step 2)**
-- Selezione multipla: `d12×2 + d6×1`
-- Limite: **15 dadi per tipo**
-- Icone personalizzate:
-  - 🗡️ successi (1 / 2 / 3)
-  - ⚡ fallimenti (singolo o doppio)
+📱 PWA installabile (desktop / mobile)
 
-### Modalità Room (multiplayer)
-- Creazione room con:
-  - **Join Code** (player)
-  - **Master Code** (GM)
-- Nickname **unici** nella stessa room
-- Tutti possono fare tiri pubblici
-- Il GM può:
-  - fare tiri visibili solo a sé
-  - richiedere un **tiro segreto** a un player specifico
-  - kickare player
-  - bloccare/sbloccare ingressi
-- Le room restano attive **finché il GM è online**
-  - Grace period: **5 minuti** se il GM cade
+✨ Funzionalità principali
+🎲 Lancio dadi (preset Aeternum)
 
-### Extra
-- Feed cronologico dei tiri
-- Status page (`/status`) per health check backend
-- Anti-spam / cooldown sui socket
-- UI pensata per desktop e mobile
+Preset ufficiali: d4 → d20 (step 2)
 
----
+Selezione multipla: es. d12×2 + d6×1
 
-## 🧱 Architettura
+Limite: 15 dadi per tipo per singolo tiro
 
-Il progetto è volutamente **senza build system**.
+Icone:
 
-### Frontend
-- HTML / CSS / JS nativi
-- ES Modules (`type="module"`)
-- Nessun framework
-- Deploy statico su Netlify
-- Funziona anche offline (pagina roll)
+🗡️ = successi (1 / 2 / 3)
 
-### Backend
-- Node.js
-- Express
-- Socket.IO
-- Stato **in memoria**
-- Deploy su Render
+⚡ = fallimenti (singolo o doppio, mostrato come ⚡⚡)
 
----
+🌐 Room (multiplayer)
 
-## 📁 Struttura del progetto
+Crea una room come GM e ottieni:
 
-aeternum-dice/
-├─ frontend/ # Statico (Netlify)
-│ ├─ index.html # Home
-│ ├─ room.html # Room multiplayer
-│ ├─ roll.html # Lancio locale
-│ ├─ about.html # Guida
-│ ├─ status.html # Health / latency backend
-│ ├─ manifest.json # PWA
-│ ├─ sw.js # Service Worker
-│ ├─ netlify.toml
-│ └─ assets/
-│ ├─ styles.css
-│ ├─ presets.js
-│ ├─ room/ # Moduli JS pagina Room
-│ └─ roll/ # Moduli JS pagina Roll
-│
-└─ backend/ # Node + Socket.IO (Render)
-├─ server.js
-├─ package.json
-└─ room/
-├─ handlers.js
-├─ store.js
-├─ dice.js
-├─ codes.js
-└─ config.js
+Join Code (per i player)
 
-yaml
-Copia codice
+Master Code (solo GM)
 
----
+Nickname unici all’interno della stessa room
 
-## ▶️ Avvio in locale
+Tutti i player possono fare tiri pubblici
 
-### Requisiti
-- Node.js (LTS)
-- Browser moderno
+Il GM può:
 
----
+fare tiri GM-only (visibili solo a sé)
 
-### 1️⃣ Avvio backend (Socket.IO)
+richiedere un tiro segreto a un player specifico (visibile solo a GM + player)
 
-```bash
+bloccare/sbloccare ingressi
+
+kickare un player
+
+🧾 Feed & storicizzazione
+
+Feed cronologico in room (pubblico + segreti visibili solo agli interessati)
+
+Pagina Status per health check backend e latenza: /status
+
+⏱️ Room lifetime
+
+La room resta viva finché il GM è online
+
+Se il GM cade, c’è un grace period di 5 minuti per rientrare
+
+🧱 Architettura
+
+Il progetto è volutamente senza build system.
+
+Frontend
+
+HTML / CSS / JS nativi
+
+ES Modules (type="module")
+
+Nessun framework
+
+PWA (manifest.json + sw.js)
+
+Deploy su Cloudflare Pages
+
+Backend realtime
+
+Node.js + Express
+
+Socket.IO
+
+Stato in memoria (no database)
+
+Deploy separato (es. Render / altro)
+
+Nota: i tiri in Room vengono generati dal server (anti-cheat / coerenza).
+
+📁 Struttura progetto
+aeternum-dice-roller/
+├─ frontend/
+│  ├─ index.html        # Home
+│  ├─ room.html         # Room multiplayer
+│  ├─ roll.html         # Solo locale
+│  ├─ about.html        # Guida
+│  ├─ status.html       # Health/latency backend
+│  ├─ qr.html           # Guida rapida da QR (se presente)
+│  ├─ manifest.json     # PWA
+│  ├─ sw.js             # Service Worker
+│  ├─ robots.txt
+│  ├─ sitemap.xml
+│  ├─ icon-192.png
+│  ├─ icon-512.png
+│  └─ assets/
+│     ├─ styles.css
+│     ├─ presets.js
+│     ├─ room/          # moduli JS pagina Room
+│     └─ roll/          # moduli JS pagina Roll
+└─ backend/
+   ├─ server.js
+   ├─ package.json
+   └─ room/
+      ├─ handlers.js
+      ├─ store.js
+      ├─ dice.js
+      ├─ codes.js
+      └─ config.js
+▶️ Avvio in locale
+Requisiti
+
+Node.js (LTS)
+
+VS Code + estensione “Live Server” (consigliato) oppure qualsiasi server statico
+
+1) Avvio backend (Socket.IO)
 cd backend
 npm install
 npm start
-Il backend sarà disponibile su:
 
-arduino
-Copia codice
+Backend su:
+
 http://localhost:3000
-Endpoint utili:
 
-GET /health → health check
+Health check: GET /health
 
-2️⃣ Avvio frontend
-Opzione consigliata — VS Code Live Server
-Apri frontend/index.html
+2) Avvio frontend
+Opzione consigliata: VS Code Live Server
+
+apri frontend/index.html
 
 “Open with Live Server”
 
 URL tipico:
 
-cpp
-Copia codice
-http://127.0.0.1:5500
-Alternativa
-bash
-Copia codice
+http://127.0.0.1:5500/frontend/
+
+Alternativa: server statico
 cd frontend
 npx serve .
-🔌 Configurazione backend URL (frontend)
-Il frontend rileva automaticamente se è in locale o in produzione.
+🔌 Configurazione BACKEND_URL (frontend)
 
-In frontend/assets/room/config.js:
+Il frontend decide automaticamente se usare backend locale o produzione.
 
-js
-Copia codice
+Esempio (in frontend/assets/room/config.js):
+
 export const BACKEND_URL =
   location.hostname === "localhost" || location.hostname === "127.0.0.1"
     ? "http://localhost:3000"
-    : "https://aeternum-dice-roller.onrender.com";
-👉 Non serve modificare nulla per il deploy.
+    : "https://<TUO-BACKEND-PROD>";
+
+👉 In pratica: in locale punta a localhost, in deploy punta al backend pubblico.
 
 🚀 Deploy
-Frontend — Netlify
-Pubblica la cartella frontend/
+Frontend — Cloudflare Pages
 
-Progetto multi-pagina (NON SPA)
+Impostazioni consigliate:
 
-Esempio netlify.toml:
+Root directory: frontend
 
-toml
-Copia codice
-[build]
-  publish = "."
+Build command: (vuoto)
 
-[[redirects]]
-  from = "/"
-  to = "/index.html"
-  status = 200
+Build output directory: frontend (o “Output: frontend” a seconda della UI)
 
-[[redirects]]
-  from = "/room"
-  to = "/room.html"
-  status = 200
+Il sito finale (prod):
 
-[[redirects]]
-  from = "/roll"
-  to = "/roll.html"
-  status = 200
+https://aeternum-dice-roller.pages.dev/
 
-[[redirects]]
-  from = "/about"
-  to = "/about.html"
-  status = 200
+✅ Non serve alcun redirect globale tipo /* → /index.html (non è una SPA).
 
-[[redirects]]
-  from = "/status"
-  to = "/status.html"
-  status = 200
-⚠️ Non usare un redirect globale /* → /index.html.
+Se vuoi URL “puliti” tipo /roll invece di /roll.html, vanno fatti con regole specifiche (e attenzione ai loop). Se oggi funziona già /roll senza regole, NON aggiungere redirect.
 
-Backend — Render
-Deploy della cartella backend/
+Backend realtime
 
-Start command:
+Deploy della cartella backend/ su un host Node (Render o altro):
 
-bash
-Copia codice
-npm start
-Impostare eventuale ALLOWED_ORIGINS per CORS
+Start command: npm start
 
-📊 Status Page
-La pagina:
+CORS: configurare ALLOWED_ORIGINS se previsto (includendo il dominio Pages)
 
-bash
-Copia codice
-/status
-mostra:
+🤖 SEO (robots + sitemap)
 
-stato backend
+Metti in frontend/:
 
-latenza
+robots.txt
 
-risposta /health
+sitemap.xml
 
-Utile per verificare se Render è in sleep.
+Ricorda che l’indicizzazione richiede tempo: pubblicare sitemap, verificare proprietà su Google Search Console e inviare sitemap/URL.
+
+📱 Installazione come app (PWA)
+iPhone
+
+Su iOS l’installazione PWA funziona tramite Safari:
+
+Safari → Condividi → Aggiungi a Home
+
+Brave su iPhone usa il motore WebKit e spesso non mostra “Installa app” come Android/desktop.
+
+Android / Desktop
+
+Dal menu del browser → Installa app
+
+Se l’icona non si aggiorna dopo modifiche: disinstalla e reinstalla.
 
 🧠 Note di sviluppo
-Il backend non usa database
 
-Le room sono effimere
+Nessun database: le room sono effimere
 
-Tutti i tiri sono generati dal server
+Il backend genera i risultati dei tiri in room
 
-Il frontend è volutamente semplice e manutenibile
-
-Il codice è pensato per essere esteso (macro, campagne, persistenza)
+Frontend minimale, pensato per essere esteso (macro, campagne, persistenza, ecc.)
