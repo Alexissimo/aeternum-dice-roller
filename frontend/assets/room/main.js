@@ -35,6 +35,7 @@ console.log("[room/main.js] loaded");
   }
 
   let socket = null;
+  let lastRejoinAt = 0;
 
   const session = {
     roomCode: null,
@@ -179,6 +180,32 @@ console.log("[room/main.js] loaded");
         onLatency: updateLatency,
       });
 
+      const autoRejoin = () => {
+        if (!session.roomCode || !session.me) return;
+        const now = Date.now();
+        if (now - lastRejoinAt < 1000) return;
+        lastRejoinAt = now;
+
+        const nickname = String(session.me?.nickname || "").trim();
+        if (!nickname) return;
+
+        if (session.me?.isGM) {
+          if (!session.masterCode) return;
+          socket.emit("room_rejoin_master", {
+            roomCode: session.roomCode,
+            masterCode: session.masterCode,
+            nickname,
+          });
+        } else {
+          socket.emit("room_join", {
+            roomCode: session.roomCode,
+            nickname,
+          });
+        }
+      };
+
+      socket.on("connect", autoRejoin);
+
       // wire events
       socket.on("error_message", ({ message }) =>
         toast(message || "Errore", 2000),
@@ -268,6 +295,9 @@ console.log("[room/main.js] loaded");
       });
 
       socket.on("room_closed", ({ reason }) => {
+        session.roomCode = null;
+        session.masterCode = null;
+        session.me = null;
         toast(`Room chiusa: ${reason || "—"}`, 2500);
         setTimeout(() => location.reload(), 400);
       });

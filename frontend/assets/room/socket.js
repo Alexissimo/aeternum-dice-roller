@@ -32,7 +32,7 @@ export async function connectSocket({ socketioScriptEl, setConnUI, onLatency } =
   setConnUI?.("connecting", `Connessione a ${backend}…`);
 
   const socket = window.io(backend, {
-    transports: ["websocket"], // websocket first
+    transports: ["websocket", "polling"], // websocket first, allow fallback
   });
 
   socket.on("connect", () => {
